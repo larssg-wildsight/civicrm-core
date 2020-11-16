@@ -18,6 +18,9 @@ class HtmlClickTracker implements ClickTrackerInterface {
         if (strpos($url, '{') !== FALSE) {
           return $url;
         }
+        if ($url[0] === '#') { 
+           return $url; 
+        }
         $data = \CRM_Mailing_BAO_TrackableURL::getTrackerURL(
           $url, $mailing_id, $queue_id);
         $data = htmlentities($data, ENT_NOQUOTES);
