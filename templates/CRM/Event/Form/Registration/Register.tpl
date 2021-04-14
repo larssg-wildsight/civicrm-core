@@ -168,6 +168,19 @@
   {/if}
   {literal}
 
+  function additionalParticipantsChange() {
+    toggleAdditionalParticipantsdDescription();
+    allowParticipant();
+  }
+
+  function toggleAdditionalParticipantsdDescription() {
+    if (cj('#additional_participants').val()) {
+      cj("#additionalParticipantsdDescription").show();
+    } else {
+      cj("#additionalParticipantsdDescription").hide();
+    }
+  }
+
   function allowParticipant() {
     {/literal}{if $allowGroupOnWaitlist}{literal}
     var additionalParticipants = cj('#additional_participants').val();
