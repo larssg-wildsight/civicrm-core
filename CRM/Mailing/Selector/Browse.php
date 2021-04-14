@@ -400,11 +400,11 @@ LEFT JOIN  civicrm_contact scheduledContact ON ( $mailing.scheduled_id = schedul
             $actionMask |= CRM_Core_Action::RENEW;
           }
         }
-
+        
         if ($allAccess || $showCreateLinks) {
           $actionMask |= CRM_Core_Action::UPDATE;
         }
-
+        
         // check for delete permission.
         if ($allowToDelete) {
           $actionMask |= CRM_Core_Action::DELETE;
