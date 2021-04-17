@@ -107,10 +107,6 @@ class CRM_Mailing_Event_BAO_Delivered extends CRM_Mailing_Event_DAO_Delivered {
       $query .= " AND $job.id = " . CRM_Utils_Type::escape($job_id, 'Integer');
     }
 
-    if ($is_distinct) {
-      $query .= " GROUP BY $queue.id ";
-    }
-
     // query was missing
     $dao->query($query);
 
@@ -182,10 +178,6 @@ class CRM_Mailing_Event_BAO_Delivered extends CRM_Mailing_Event_DAO_Delivered {
 
     if (!empty($job_id)) {
       $query .= " AND $job.id = " . CRM_Utils_Type::escape($job_id, 'Integer');
-    }
-
-    if ($is_distinct) {
-      $query .= " GROUP BY $queue.id, $delivered.id";
     }
 
     $orderBy = "sort_name ASC, {$delivered}.time_stamp DESC";
