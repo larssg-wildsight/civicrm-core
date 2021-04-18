@@ -124,10 +124,6 @@ class CRM_Mailing_Event_BAO_Bounce extends CRM_Mailing_Event_DAO_Bounce {
       $query .= " AND $job.id = " . CRM_Utils_Type::escape($job_id, 'Integer');
     }
 
-    if ($is_distinct) {
-      $query .= " GROUP BY $queue.id ";
-    }
-
     // query was missing
     $dao->query($query);
 
