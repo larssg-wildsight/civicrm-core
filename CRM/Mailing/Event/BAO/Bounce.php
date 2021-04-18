@@ -91,8 +91,6 @@ class CRM_Mailing_Event_BAO_Bounce extends CRM_Mailing_Event_DAO_Bounce {
    *   ID of the mailing.
    * @param int $job_id
    *   Optional ID of a job to filter on.
-   * @param bool $is_distinct
-   *   Group by queue ID?.
    *
    * @param string|null $toDate
    *

@@ -68,8 +68,6 @@ class CRM_Mailing_Event_BAO_Delivered extends CRM_Mailing_Event_DAO_Delivered {
    *   ID of the mailing.
    * @param int $job_id
    *   Optional ID of a job to filter on.
-   * @param bool $is_distinct
-   *   Group by queue ID?.
    * @param string $toDate
    *
    * @return int
