@@ -483,8 +483,8 @@
     var statTypes = [
       {name: 'Recipients',    title: ts('Intended Recipients'),     searchFilter: '',                           eventsFilter: '&event=queue', reportType: 'detail', reportFilter: ''},
       {name: 'Delivered',     title: ts('Successful Deliveries'),   searchFilter: '&mailing_delivery_status=Y', eventsFilter: '&event=delivered', reportType: 'detail', reportFilter: '&delivery_status_value=successful'},
-      {name: 'Opened',        title: ts('Tracked Opens'),           searchFilter: '&mailing_open_status=Y',     eventsFilter: '&event=opened', reportType: 'opened', reportFilter: ''},
-      {name: 'Unique Clicks', title: ts('Click-throughs'),          searchFilter: '&mailing_click_status=Y',    eventsFilter: '&event=click&distinct=1', reportType: 'clicks', reportFilter: ''},
+      {name: 'Opened',        title: ts('Unique Opens'),           searchFilter: '&mailing_open_status=Y',     eventsFilter: '&event=opened', reportType: 'opened', reportFilter: ''},
+      {name: 'Unique Clicks', title: ts('Unique Clicks'),          searchFilter: '&mailing_click_status=Y',    eventsFilter: '&event=click&distinct=1', reportType: 'clicks', reportFilter: ''},
       // {name: 'Forward',    title: ts('Forwards'),                searchFilter: '&mailing_forward=1',         eventsFilter: '&event=forward', reportType: 'detail', reportFilter: '&is_forwarded_value=1'},
       // {name: 'Replies',    title: ts('Replies'),                 searchFilter: '&mailing_reply_status=Y',    eventsFilter: '&event=reply', reportType: 'detail', reportFilter: '&is_replied_value=1'},
       {name: 'Bounces',       title: ts('Bounces'),                 searchFilter: '&mailing_delivery_status=N', eventsFilter: '&event=bounce', reportType: 'bounce', reportFilter: ''},
