@@ -25,7 +25,6 @@
         <td class="label">{$form.entity.label}</td>
         <td>{$form.entity.html}</td>
     </tr>
-
     <tr class="crm-scheduleReminder-form-block-when">
         <td class="right">{$form.start_action_offset.label}</td>
         <td>{$form.absolute_or_relative_date.html}</td>
