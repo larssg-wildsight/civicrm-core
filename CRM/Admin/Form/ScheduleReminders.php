@@ -179,7 +179,7 @@ class CRM_Admin_Form_ScheduleReminders extends CRM_Admin_Form {
       $freqUnitsDisplay[$val] = ts('%1(s)', [1 => $label]);
     }
 
-    $this->add('select', 'absolute_or_relative_date', ts('When'), ['relative' => ts('Relative'), 'absolute' => ts('Specific date')],
+    $this->add('select', 'absolute_or_relative_date', ts('When'), ['absolute' => ts('Specific date'), 'relative' => ts('Relative')],
       FALSE, ['onchange' => "showHideByValue('absolute_or_relative_date','absolute','absoluteDate','table-row','select',false); showHideByValue('absolute_or_relative_date','relative','relativeDate','table-row','select',false);"]
     );
 
