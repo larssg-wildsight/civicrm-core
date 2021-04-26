@@ -168,11 +168,11 @@
   {literal}
 
   function additionalParticipantsChange() {
-    toggleAdditionalParticipantsdDescription();
+    toggleAdditionalParticipantsDescription();
     allowParticipant();
   }
 
-  function toggleAdditionalParticipantsdDescription() {
+  function toggleAdditionalParticipantsDescription() {
     if (cj('#additional_participants').val()) {
       cj("#additionalParticipantsdDescription").show();
     } else {
