@@ -62,7 +62,7 @@
         <div class="content">
           {$form.additional_participants.html}{if $contact_id || $contact_id == NULL}{ts}(including yourself){/ts}{/if}
           <br/>
-          <div class="description" id="additionalParticipantsdDescription" style="display: none;">{ts}Fill in your registration information on this page. If you are registering additional people, you will be able to enter their registration information after you complete this page and click &quot;Review your registration&quot;.{/ts}</div>
+          <div class="description" id="additionalParticipantsDescription" style="display: none;">{ts}Fill in your registration information on this page. If you are registering additional people, you will be able to enter their registration information after you complete this page and click &quot;Review your registration&quot;.{/ts}</div>
         </div>
         <div class="clear"></div>
       </div>
@@ -174,9 +174,9 @@
 
   function toggleAdditionalParticipantsDescription() {
     if (cj('#additional_participants').val()) {
-      cj("#additionalParticipantsdDescription").show();
+      cj("#additionalParticipantsDescription").show();
     } else {
-      cj("#additionalParticipantsdDescription").hide();
+      cj("#additionalParticipantsDescription").hide();
     }
   }
 
