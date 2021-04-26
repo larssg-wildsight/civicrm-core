@@ -26,8 +26,8 @@
   {if $permissionEditSmartGroup}
     {capture assign=groupSettingsURL}{crmURL p='civicrm/group' q="action=update&id=`$group.id`&reset=1"}{/capture}
         <a href="{$groupSettingsURL}" class="action-item button"><span><i class="crm-i fa-wrench" aria-hidden="true"></i> {ts}Edit Group Settings{/ts}</span></a>
-      </div>
   {/if}
+  </div>
 {/if}
 
 
