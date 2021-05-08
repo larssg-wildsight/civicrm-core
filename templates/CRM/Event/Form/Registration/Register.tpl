@@ -178,7 +178,6 @@
     var review_translated = '{ts}Review{/ts}';
     var continue_translated = '{ts}Continue{/ts}';
   {literal}
-    console.log(continue_translated + " " + review_translated);
     if (cj('#additional_participants').val()) {
       cj("#additionalParticipantsDescription").show();
       cj("#crm-submit-buttons > button").html(submit_button.replace(review_translated, continue_translated));
