@@ -62,7 +62,7 @@
         <div class="content">
           {$form.additional_participants.html}{if $contact_id || $contact_id == NULL}&nbsp;{ts}(including yourself){/ts}{/if}
           <br/>
-          <div class="description" id="additionalParticipantsDescription" style="display: none;">{ts}Fill in your registration information on this page. You will be able to enter their registration information for additional people after you complete this page and click &quot;Review your registration&quot;.{/ts}</div>
+          <div class="description" id="additionalParticipantsDescription" style="display: none;">{ts}Fill in your registration information on this page. You will be able to enter their registration information for additional people after you complete this page and click &quot;Continue&quot;.{/ts}</div>
         </div>
         <div class="clear"></div>
       </div>
@@ -168,20 +168,23 @@
   {literal}
 
   function additionalParticipantsChange() {
-    toggleAdditionalParticipantsDescription();
+    toggleAdditionalParticipants();
     allowParticipant();
   }
 
-  function toggleAdditionalParticipantsDescription() {
+  function toggleAdditionalParticipants() {
+    var submit_button = cj("#crm-submit-buttons > button").html();
     if (cj('#additional_participants').val()) {
       cj("#additionalParticipantsDescription").show();
+      cj("#crm-submit-buttons > button").html(submit_button.replace("Review", "Continue"));
     } else {
       cj("#additionalParticipantsDescription").hide();
+      cj("#crm-submit-buttons > button").html(submit_button.replace("Continue", "Review"));
     }
   }
 
   window.onload = function() {
-    toggleAdditionalParticipantsDescription();
+    toggleAdditionalParticipants();
   };
 
   function allowParticipant() {
