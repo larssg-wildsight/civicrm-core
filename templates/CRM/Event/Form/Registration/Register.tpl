@@ -180,6 +180,10 @@
     }
   }
 
+  window.onload = function() {
+    toggleAdditionalParticipantsDescription();
+  };
+
   function allowParticipant() {
     {/literal}{if $allowGroupOnWaitlist}{literal}
     var additionalParticipants = cj('#additional_participants').val();
