@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFinancialAccount {
 
@@ -51,7 +35,7 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
    *
    * @return CRM_Contribute_BAO_ContributionType
    */
-  public static function retrieve(&$params, &$defaults, &$allValues = array()) {
+  public static function retrieve(&$params, &$defaults = [], &$allValues = []) {
     $financialTypeAccount = new CRM_Financial_DAO_EntityFinancialAccount();
     $financialTypeAccount->copyValues($params);
     $financialTypeAccount->find();
@@ -68,14 +52,17 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
    * @param array $params
    *   Reference array contains the values submitted by the form.
    * @param array $ids
-   *   Reference array contains the id.
+   *   Reference array contains one possible value
+   *   - entityFinancialAccount.
    *
-   * @return object
+   * @return CRM_Financial_DAO_EntityFinancialAccount
+   *
+   * @throws \CRM_Core_Exception
    */
-  public static function add(&$params, &$ids = NULL) {
+  public static function add(&$params, $ids = NULL) {
     // action is taken depending upon the mode
     $financialTypeAccount = new CRM_Financial_DAO_EntityFinancialAccount();
-    if ($params['entity_table'] != 'civicrm_financial_type') {
+    if ($params['entity_table'] !== 'civicrm_financial_type') {
       $financialTypeAccount->entity_id = $params['entity_id'];
       $financialTypeAccount->entity_table = $params['entity_table'];
       $financialTypeAccount->find(TRUE);
@@ -87,6 +74,7 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
     $financialTypeAccount->copyValues($params);
     self::validateRelationship($financialTypeAccount);
     $financialTypeAccount->save();
+    unset(Civi::$statics['CRM_Core_PseudoConstant']['taxRates']);
     return $financialTypeAccount;
   }
 
@@ -96,6 +84,7 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
    * @param int $financialTypeAccountId
    * @param int $accountId
    *
+   * @throws \CRM_Core_Exception
    */
   public static function del($financialTypeAccountId, $accountId = NULL) {
     // check if financial type is present
@@ -105,19 +94,20 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
     $financialTypeId = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_EntityFinancialAccount', $financialTypeAccountId, 'entity_id');
     // check dependencies
     // FIXME more table containing financial_type_id to come
-    $dependency = array(
-      array('Contribute', 'Contribution'),
-      array('Contribute', 'ContributionPage'),
-      array('Member', 'MembershipType'),
-      array('Price', 'PriceFieldValue'),
-      array('Grant', 'Grant'),
-      array('Contribute', 'PremiumsProduct'),
-      array('Contribute', 'Product'),
-      array('Price', 'LineItem'),
-    );
+    $dependency = [
+      ['Contribute', 'Contribution'],
+      ['Contribute', 'ContributionPage'],
+      ['Member', 'MembershipType'],
+      ['Price', 'PriceFieldValue'],
+      ['Grant', 'Grant'],
+      ['Contribute', 'PremiumsProduct'],
+      ['Contribute', 'Product'],
+      ['Price', 'LineItem'],
+    ];
 
     foreach ($dependency as $name) {
       $daoString = 'CRM_' . $name[0] . '_DAO_' . $name[1];
+      /* @var \CRM_Core_DAO $dao */
       $dao = new $daoString();
       $dao->financial_type_id = $financialTypeId;
       if ($dao->find(TRUE)) {
@@ -127,12 +117,12 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
     }
 
     if ($check) {
-      if ($name[1] == 'PremiumsProduct' || $name[1] == 'Product') {
-        CRM_Core_Session::setStatus(ts('You cannot remove an account with a %1 relationship while the Financial Type is used for a Premium.', array(1 => $relationValues[$financialTypeAccountId])));
+      if ($name[1] === 'PremiumsProduct' || $name[1] === 'Product') {
+        CRM_Core_Session::setStatus(ts('You cannot remove an account with a %1 relationship while the Financial Type is used for a Premium.', [1 => $relationValues[$financialTypeAccountId]]));
       }
       else {
         $accountRelationShipId = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_EntityFinancialAccount', $financialTypeAccountId, 'account_relationship');
-        CRM_Core_Session::setStatus(ts('You cannot remove an account with a %1 relationship because it is being referenced by one or more of the following types of records: Contributions, Contribution Pages, or Membership Types. Consider disabling this type instead if you no longer want it used.', array(1 => $relationValues[$accountRelationShipId])), NULL, 'error');
+        CRM_Core_Session::setStatus(ts('You cannot remove an account with a %1 relationship because it is being referenced by one or more of the following types of records: Contributions, Contribution Pages, or Membership Types. Consider disabling this type instead if you no longer want it used.', [1 => $relationValues[$accountRelationShipId]]), NULL, 'error');
       }
       return CRM_Utils_System::redirect(CRM_Utils_System::url('civicrm/admin/financial/financialType/accounts', "reset=1&action=browse&aid={$accountId}"));
     }
@@ -142,7 +132,7 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
     $financialType->id = $financialTypeAccountId;
     $financialType->find(TRUE);
     $financialType->delete();
-    CRM_Core_Session::setStatus(ts('Unbalanced transactions may be created if you delete the account of type: %1.', array(1 => $relationValues[$financialType->account_relationship])));
+    CRM_Core_Session::setStatus(ts('Unbalanced transactions may be created if you delete the account of type: %1.', [1 => $relationValues[$financialType->account_relationship]]));
   }
 
   /**
@@ -152,65 +142,76 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
    *   Payment instrument value.
    *
    * @return null|int
+   * @throws \CiviCRM_API3_Exception
    */
   public static function getInstrumentFinancialAccount($paymentInstrumentValue) {
-    $paymentInstrument = civicrm_api3('OptionValue', 'getsingle', array(
-      'return' => array("id"),
-      'value' => $paymentInstrumentValue,
-      'option_group_id' => "payment_instrument",
-    ));
-    $financialAccountId = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount(
-      $paymentInstrument['id'],
-      NULL,
-      'civicrm_option_value'
-    );
-    return $financialAccountId;
+    if (!isset(\Civi::$statics[__CLASS__]['instrument_financial_accounts'][$paymentInstrumentValue])) {
+      $paymentInstrumentID = civicrm_api3('OptionValue', 'getvalue', [
+        'return' => 'id',
+        'value' => $paymentInstrumentValue,
+        'option_group_id' => "payment_instrument",
+      ]);
+      $accounts = civicrm_api3('EntityFinancialAccount', 'get', [
+        'return' => 'financial_account_id',
+        'entity_table' => 'civicrm_option_value',
+        'entity_id' => $paymentInstrumentID,
+        'options' => ['limit' => 1],
+        'sequential' => 1,
+      ])['values'];
+      if (empty($accounts)) {
+        \Civi::$statics[__CLASS__]['instrument_financial_accounts'][$paymentInstrumentValue] = NULL;
+      }
+      else {
+        \Civi::$statics[__CLASS__]['instrument_financial_accounts'][$paymentInstrumentValue] = $accounts[0]['financial_account_id'];
+      }
+    }
+    return \Civi::$statics[__CLASS__]['instrument_financial_accounts'][$paymentInstrumentValue];
   }
 
   /**
    * Create default entity financial accounts
    * for financial type
-   * CRM-12470
+   * @see https://issues.civicrm.org/jira/browse/CRM-12470
    *
    * @param $financialType
    *
    * @return array
    */
   public static function createDefaultFinancialAccounts($financialType) {
-    $titles = array();
+    $titles = [];
     $financialAccountTypeID = CRM_Core_OptionGroup::values('financial_account_type', FALSE, FALSE, FALSE, NULL, 'name');
     $accountRelationship    = CRM_Core_OptionGroup::values('account_relationship', FALSE, FALSE, FALSE, NULL, 'name');
 
-    $relationships = array(
+    $relationships = [
       array_search('Accounts Receivable Account is', $accountRelationship) => array_search('Asset', $financialAccountTypeID),
       array_search('Expense Account is', $accountRelationship) => array_search('Expenses', $financialAccountTypeID),
       array_search('Cost of Sales Account is', $accountRelationship) => array_search('Cost of Sales', $financialAccountTypeID),
       array_search('Income Account is', $accountRelationship) => array_search('Revenue', $financialAccountTypeID),
-    );
+    ];
 
     $dao = CRM_Core_DAO::executeQuery('SELECT id, financial_account_type_id FROM civicrm_financial_account WHERE name LIKE %1',
-      array(1 => array($financialType->name, 'String'))
+      [1 => [$financialType->name, 'String']]
     );
     $dao->fetch();
-    $existingFinancialAccount = array();
+    $existingFinancialAccount = [];
     if (!$dao->N) {
-      $params = array(
+      $params = [
         'name' => $financialType->name,
-        'contact_id' => CRM_Core_DAO::getFieldValue('CRM_Core_DAO_Domain', CRM_Core_Config::domainID(), 'contact_id'),
+        'contact_id' => CRM_Core_BAO_Domain::getDomain()->contact_id,
         'financial_account_type_id' => array_search('Revenue', $financialAccountTypeID),
         'description' => $financialType->description,
         'account_type_code' => 'INC',
         'is_active' => 1,
-      );
+      ];
       $financialAccount = CRM_Financial_BAO_FinancialAccount::add($params);
     }
     else {
       $existingFinancialAccount[$dao->financial_account_type_id] = $dao->id;
     }
-    $params = array(
+    $params = [
       'entity_table' => 'civicrm_financial_type',
       'entity_id' => $financialType->id,
-    );
+    ];
     foreach ($relationships as $key => $value) {
       if (!array_key_exists($value, $existingFinancialAccount)) {
         if ($accountRelationship[$key] == 'Accounts Receivable Account is') {
@@ -247,7 +248,7 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
       self::add($params);
     }
     if (!empty($existingFinancialAccount)) {
-      $titles = array();
+      $titles = [];
     }
     return $titles;
   }
@@ -255,7 +256,7 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
   /**
    * Validate account relationship with financial account type
    *
-   * @param obj $financialTypeAccount of CRM_Financial_DAO_EntityFinancialAccount
+   * @param CRM_Financial_DAO_EntityFinancialAccount $financialTypeAccount of CRM_Financial_DAO_EntityFinancialAccount
    *
    * @throws CRM_Core_Exception
    */
@@ -264,9 +265,9 @@ class CRM_Financial_BAO_FinancialTypeAccount extends CRM_Financial_DAO_EntityFin
     $financialAccountType = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialAccount', $financialTypeAccount->financial_account_id, 'financial_account_type_id');
     if (CRM_Utils_Array::value($financialTypeAccount->account_relationship, $financialAccountLinks) != $financialAccountType) {
       $accountRelationships = CRM_Core_PseudoConstant::get('CRM_Financial_DAO_EntityFinancialAccount', 'account_relationship');
-      $params = array(
+      $params = [
         1 => $accountRelationships[$financialTypeAccount->account_relationship],
-      );
+      ];
       throw new CRM_Core_Exception(ts("This financial account cannot have '%1' relationship.", $params));
     }
   }

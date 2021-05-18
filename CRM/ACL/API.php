@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_ACL_API {
 
@@ -56,6 +40,7 @@ class CRM_ACL_API {
    *   true if yes, else false
    */
   public static function check($str, $contactID = NULL) {
+    \CRM_Core_Error::deprecatedWarning(__CLASS__ . '::' . __FUNCTION__ . ' is deprecated.');
     if ($contactID == NULL) {
       $contactID = CRM_Core_Session::getLoggedInContactID();
     }
@@ -104,20 +89,15 @@ class CRM_ACL_API {
     // the default value which is valid for the final AND
     $deleteClause = ' ( 1 ) ';
     if (!$skipDeleteClause) {
-      if (CRM_Core_Permission::check('access deleted contacts') and $onlyDeleted) {
-        $deleteClause = '(contact_a.is_deleted)';
+      if (CRM_Core_Permission::check('access deleted contacts')) {
+        if ($onlyDeleted) {
+          $deleteClause = '(contact_a.is_deleted)';
+        }
       }
       else {
-        // CRM-6181
+        // Exclude deleted contacts due to permissions
         $deleteClause = '(contact_a.is_deleted = 0)';
       }
-    }
-
-    // first see if the contact has edit / view all contacts
-    if (CRM_Core_Permission::check('edit all contacts') ||
-      ($type == self::VIEW && CRM_Core_Permission::check('view all contacts'))
-    ) {
-      return $deleteClause;
     }
 
     if (!$contactID) {
@@ -125,16 +105,19 @@ class CRM_ACL_API {
     }
     $contactID = (int) $contactID;
 
-    $where = implode(' AND ',
-      array(
-        CRM_ACL_BAO_ACL::whereClause($type,
-          $tables,
-          $whereTables,
-          $contactID
-        ),
-        $deleteClause,
-      )
+    // first see if the contact has edit / view all permission
+    if (CRM_Core_Permission::check('edit all contacts', $contactID) ||
+      ($type == self::VIEW && CRM_Core_Permission::check('view all contacts', $contactID))
+    ) {
+      return $deleteClause;
+    }
+
+    $whereClause = CRM_ACL_BAO_ACL::whereClause($type,
+      $tables,
+      $whereTables,
+      $contactID
     );
+    $where = implode(' AND ', [$whereClause, $deleteClause]);
 
     // Add permission on self if we really hate our server or have hardly any contacts.
     if (!$skipOwnContactClause && $contactID && (CRM_Core_Permission::check('edit my contact') ||
@@ -203,11 +186,11 @@ class CRM_ACL_API {
   ) {
 
     if (!isset(Civi::$statics[__CLASS__]) || !isset(Civi::$statics[__CLASS__]['group_permission'])) {
-      Civi::$statics[__CLASS__]['group_permission'] = array();
+      Civi::$statics[__CLASS__]['group_permission'] = [];
     }
 
     if (!$contactID) {
-      $contactID = CRM_Core_Session::singleton()->getLoggedInContactID();
+      $contactID = CRM_Core_Session::getLoggedInContactID();
     }
 
     $key = "{$tableName}_{$type}_{$contactID}";

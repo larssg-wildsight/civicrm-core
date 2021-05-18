@@ -13,11 +13,11 @@ class CRM_Core_ManagedEntities {
    * @return array
    */
   public static function getCleanupOptions() {
-    return array(
+    return [
       'always' => ts('Always'),
       'never' => ts('Never'),
       'unused' => ts('If Unused'),
-    );
+    ];
   }
 
   /**
@@ -55,7 +55,7 @@ class CRM_Core_ManagedEntities {
       function () {
         CRM_Core_ManagedEntities::singleton(TRUE)->reconcile();
       },
-      array(),
+      [],
       'ManagedEntities::reconcile'
     );
   }
@@ -92,9 +92,9 @@ class CRM_Core_ManagedEntities {
     $dao->module = $moduleName;
     $dao->name = $name;
     if ($dao->find(TRUE)) {
-      $params = array(
+      $params = [
         'id' => $dao->entity_id,
-      );
+      ];
       $result = NULL;
       try {
         $result = civicrm_api3($dao->entity_type, 'getsingle', $params);
@@ -112,10 +112,15 @@ class CRM_Core_ManagedEntities {
   /**
    * Identify any enabled/disabled modules. Add new entities, update
    * existing entities, and remove orphaned (stale) entities.
+   * @param bool $ignoreUpgradeMode
    *
    * @throws Exception
    */
-  public function reconcile() {
+  public function reconcile($ignoreUpgradeMode = FALSE) {
+    // Do not reconcile whilst we are in upgrade mode
+    if (CRM_Core_Config::singleton()->isUpgradeMode() && !$ignoreUpgradeMode) {
+      return;
+    }
     if ($error = $this->validate($this->getDeclarations())) {
       throw new Exception($error);
     }
@@ -191,6 +196,7 @@ class CRM_Core_ManagedEntities {
     $in = CRM_Core_DAO::escapeStrings(array_keys($this->moduleIndex[FALSE]));
     $dao = new CRM_Core_DAO_Managed();
     $dao->whereAdd("module in ($in)");
+    $dao->orderBy('id DESC');
     $dao->find();
     while ($dao->fetch()) {
       $this->disableEntity($dao);
@@ -203,7 +209,7 @@ class CRM_Core_ManagedEntities {
    * unknown modules.
    */
   public function reconcileUnknownModules() {
-    $knownModules = array();
+    $knownModules = [];
     if (array_key_exists(0, $this->moduleIndex) && is_array($this->moduleIndex[0])) {
       $knownModules = array_merge($knownModules, array_keys($this->moduleIndex[0]));
     }
@@ -215,6 +221,7 @@ class CRM_Core_ManagedEntities {
     if (!empty($knownModules)) {
       $in = CRM_Core_DAO::escapeStrings($knownModules);
       $dao->whereAdd("module NOT IN ($in)");
+      $dao->orderBy('id DESC');
     }
     $dao->find();
     while ($dao->fetch()) {
@@ -230,7 +237,7 @@ class CRM_Core_ManagedEntities {
    */
   public function insertNewEntity($todo) {
     $result = civicrm_api($todo['entity'], 'create', $todo['params']);
-    if ($result['is_error']) {
+    if (!empty($result['is_error'])) {
       $this->onApiError($todo['entity'], 'create', $todo['params'], $result);
     }
 
@@ -238,13 +245,15 @@ class CRM_Core_ManagedEntities {
     $dao->module = $todo['module'];
     $dao->name = $todo['name'];
     $dao->entity_type = $todo['entity'];
-    $dao->entity_id = $result['id'];
-    $dao->cleanup = CRM_Utils_Array::value('cleanup', $todo);
+    // A fatal error will result if there is no valid id but if
+    // this is v4 api we might need to access it via ->first().
+    $dao->entity_id = $result['id'] ?? $result->first()['id'];
+    $dao->cleanup = $todo['cleanup'] ?? NULL;
     $dao->save();
   }
 
   /**
-   * Update an entity which (a) is believed to exist and which (b) ought to be active.
+   * Update an entity which is believed to exist.
    *
    * @param CRM_Core_DAO_Managed $dao
    * @param array $todo
@@ -255,11 +264,29 @@ class CRM_Core_ManagedEntities {
     $doUpdate = ($policy == 'always');
 
     if ($doUpdate) {
-      $defaults = array(
-        'id' => $dao->entity_id,
-        'is_active' => 1, // FIXME: test whether is_active is valid
-      );
+      $defaults = ['id' => $dao->entity_id];
+      if ($this->isActivationSupported($dao->entity_type)) {
+        $defaults['is_active'] = 1;
+      }
       $params = array_merge($defaults, $todo['params']);
+
+      $manager = CRM_Extension_System::singleton()->getManager();
+      if ($dao->entity_type === 'Job' && !$manager->extensionIsBeingInstalledOrEnabled($dao->module)) {
+        // Special treatment for scheduled jobs:
+        //
+        // If we're being called as part of enabling/installing a module then
+        // we want the default behaviour of setting is_active = 1.
+        //
+        // However, if we're just being called by a normal cache flush then we
+        // should not re-enable a job that an administrator has decided to disable.
+        //
+        // Without this logic there was a problem: site admin might disable
+        // a job, but then when there was a flush op, the job was re-enabled
+        // which can cause significant embarrassment, depending on the job
+        // ("Don't worry, sending mailings is disabled right now...").
+        unset($params['is_active']);
+      }
+
       $result = civicrm_api($dao->entity_type, 'create', $params);
       if ($result['is_error']) {
         $this->onApiError($dao->entity_type, 'create', $params, $result);
@@ -277,16 +304,18 @@ class CRM_Core_ManagedEntities {
    * inactive.
    *
    * @param CRM_Core_DAO_Managed $dao
+   *
+   * @throws \CiviCRM_API3_Exception
    */
-  public function disableEntity($dao) {
-    // FIXME: if ($dao->entity_type supports is_active) {
-    if (TRUE) {
+  public function disableEntity($dao): void {
+    $entity_type = $dao->entity_type;
+    if ($this->isActivationSupported($entity_type)) {
       // FIXME cascading for payproc types?
-      $params = array(
+      $params = [
         'version' => 3,
         'id' => $dao->entity_id,
         'is_active' => 0,
-      );
+      ];
       $result = civicrm_api($dao->entity_type, 'create', $params);
       if ($result['is_error']) {
         $this->onApiError($dao->entity_type, 'create', $params, $result);
@@ -312,10 +341,10 @@ class CRM_Core_ManagedEntities {
         break;
 
       case 'unused':
-        $getRefCount = civicrm_api3($dao->entity_type, 'getrefcount', array(
+        $getRefCount = civicrm_api3($dao->entity_type, 'getrefcount', [
           'debug' => 1,
           'id' => $dao->entity_id,
-        ));
+        ]);
 
         $total = 0;
         foreach ($getRefCount['values'] as $refCount) {
@@ -330,21 +359,20 @@ class CRM_Core_ManagedEntities {
     }
 
     if ($doDelete) {
-      $params = array(
+      $params = [
         'version' => 3,
         'id' => $dao->entity_id,
-      );
+      ];
       $check = civicrm_api3($dao->entity_type, 'get', $params);
       if ((bool) $check['count']) {
         $result = civicrm_api($dao->entity_type, 'delete', $params);
         if ($result['is_error']) {
           $this->onApiError($dao->entity_type, 'delete', $params, $result);
         }
-
-        CRM_Core_DAO::executeQuery('DELETE FROM civicrm_managed WHERE id = %1', array(
-          1 => array($dao->id, 'Integer'),
-        ));
       }
+      CRM_Core_DAO::executeQuery('DELETE FROM civicrm_managed WHERE id = %1', [
+        1 => [$dao->id, 'Integer'],
+      ]);
     }
   }
 
@@ -355,7 +383,7 @@ class CRM_Core_ManagedEntities {
    */
   public function getDeclarations() {
     if ($this->declarations === NULL) {
-      $this->declarations = array();
+      $this->declarations = [];
       foreach (CRM_Core_Component::getEnabledComponents() as $component) {
         /** @var CRM_Core_Component_Info $component */
         $this->declarations = array_merge($this->declarations, $component->getManagedEntities());
@@ -374,7 +402,7 @@ class CRM_Core_ManagedEntities {
    *   indexed by is_active,name
    */
   protected static function createModuleIndex($modules) {
-    $result = array();
+    $result = [];
     foreach ($modules as $module) {
       $result[$module->is_active][$module->name] = $module;
     }
@@ -389,14 +417,14 @@ class CRM_Core_ManagedEntities {
    *   indexed by module,name
    */
   protected static function createDeclarationIndex($moduleIndex, $declarations) {
-    $result = array();
+    $result = [];
     if (!isset($moduleIndex[TRUE])) {
       return $result;
     }
     foreach ($moduleIndex[TRUE] as $moduleName => $module) {
       if ($module->is_active) {
         // need an empty array() for all active modules, even if there are no current $declarations
-        $result[$moduleName] = array();
+        $result[$moduleName] = [];
       }
     }
     foreach ($declarations as $declaration) {
@@ -413,7 +441,7 @@ class CRM_Core_ManagedEntities {
    */
   protected static function validate($declarations) {
     foreach ($declarations as $declare) {
-      foreach (array('name', 'module', 'entity', 'params') as $key) {
+      foreach (['name', 'module', 'entity', 'params'] as $key) {
         if (empty($declare[$key])) {
           $str = print_r($declare, TRUE);
           return ("Managed Entity is missing field \"$key\": $str");
@@ -447,13 +475,32 @@ class CRM_Core_ManagedEntities {
    * @throws Exception
    */
   protected function onApiError($entity, $action, $params, $result) {
-    CRM_Core_Error::debug_var('ManagedEntities_failed', array(
+    CRM_Core_Error::debug_var('ManagedEntities_failed', [
       'entity' => $entity,
       'action' => $action,
       'params' => $params,
       'result' => $result,
-    ));
-    throw new Exception('API error: ' . $result['error_message']);
+    ]);
+    throw new Exception('API error: ' . $result['error_message'] . ' on ' . $entity . '.' . $action);
+  }
+
+  /**
+   * Determine if an entity supports APIv3-based activation/de-activation.
+   * @param string $entity_type
+   *
+   * @return bool
+   * @throws \CiviCRM_API3_Exception
+   */
+  private function isActivationSupported(string $entity_type): bool {
+    if (!isset(Civi::$statics[__CLASS__][__FUNCTION__][$entity_type])) {
+      $actions = civicrm_api3($entity_type, 'getactions', [])['values'];
+      Civi::$statics[__CLASS__][__FUNCTION__][$entity_type] = FALSE;
+      if (in_array('create', $actions, TRUE) && in_array('getfields', $actions)) {
+        $fields = civicrm_api3($entity_type, 'getfields', ['action' => 'create'])['values'];
+        Civi::$statics[__CLASS__][__FUNCTION__][$entity_type] = array_key_exists('is_active', $fields);
+      }
+    }
+    return Civi::$statics[__CLASS__][__FUNCTION__][$entity_type];
   }
 
 }

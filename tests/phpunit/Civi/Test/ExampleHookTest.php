@@ -8,7 +8,7 @@ use Civi\Angular\Page\Main;
  *
  * @group headless
  */
-class ExampleHookTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface {
+class ExampleHookTest extends \PHPUnit\Framework\TestCase implements HeadlessInterface, HookInterface {
 
   /**
    * @var \CRM_Contact_DAO_Contact
@@ -19,15 +19,15 @@ class ExampleHookTest extends \PHPUnit_Framework_TestCase implements HeadlessInt
     return \Civi\Test::headless()->apply();
   }
 
-  protected function setUp() {
-    $this->contact = \CRM_Core_DAO::createTestObject('CRM_Contact_DAO_Contact', array(
+  protected function setUp(): void {
+    $this->contact = \CRM_Core_DAO::createTestObject('CRM_Contact_DAO_Contact', [
       'contact_type' => 'Individual',
-    ));
+    ]);
     $session = \CRM_Core_Session::singleton();
     $session->set('userID', $this->contact->id);
   }
 
-  protected function tearDown() {
+  protected function tearDown(): void {
     $this->contact->delete();
   }
 

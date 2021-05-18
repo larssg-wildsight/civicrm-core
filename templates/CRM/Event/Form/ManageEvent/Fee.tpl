@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {* this template is used for adding event  *}
@@ -162,7 +146,7 @@
         <tr class="columnheader"><td scope="column">{ts}Fee Label{/ts}</td><td scope="column">{ts}Amount{/ts}</td><td scope="column">{ts}Default?{/ts}<br />{$form.default.0.html}</td></tr>
         {section name=loop start=1 loop=11}
            {assign var=idx value=$smarty.section.loop.index}
-           <tr><td class="even-row crm-event-manage-fee-form-block-label_{$idx}">{$form.label.$idx.html}</td><td class="crm-event-manage-fee-form-block-value_{$idx}">{$form.value.$idx.html|crmMoney}</td><td class="even-row crm-event-manage-fee-form-block-default_{$idx}">{$form.default.$idx.html}</td></tr>
+           <tr><td class="even-row crm-event-manage-fee-form-block-label_{$idx}">{$form.label.$idx.html}</td><td class="crm-event-manage-fee-form-block-value_{$idx}">{$form.value.$idx.html}</td><td class="even-row crm-event-manage-fee-form-block-default_{$idx}">{$form.default.$idx.html}</td></tr>
         {/section}
         </table>
         </fieldset>
@@ -190,16 +174,16 @@
   {section name=rowLoop start=1 loop=6}
      {assign var=index value=$smarty.section.rowLoop.index}
      <tr id="discount_{$index}" class=" crm-event-manage-fee-form-block-discount_{$index} {if $index GT 1 AND empty( $form.discount_name[$index].value) } hiddenElement {/if} form-item {cycle values="odd-row,even-row"}">
-           <td>{if $index GT 1} <a onclick="showHideDiscountRow('discount_{$index}', false, {$index}); return false;" name="discount_{$index}" href="#" class="form-link"><img src="{$config->resourceBase}i/TreeMinus.gif" class="action-icon" alt="{ts}hide field or section{/ts}"/></a>{/if}
+           <td>{if $index GT 1} <a onclick="showHideDiscountRow('discount_{$index}', false, {$index}); return false;" name="discount_{$index}" href="#" class="form-link">{icon icon="fa-trash"}{ts}remove discount set{/ts}{/icon}</span></a>{/if}
            </td>
            <td class="crm-event-manage-fee-form-block-discount_name"> {$form.discount_name.$index.html}</td>
-           <td class="crm-event-manage-fee-form-block-discount_start_date"> {include file="CRM/common/jcalendar.tpl" elementName='discount_start_date' elementIndex=$index} </td>
-           <td class="crm-event-manage-fee-form-block-discount_end_date"> {include file="CRM/common/jcalendar.tpl" elementName='discount_end_date' elementIndex=$index} </td>
+           <td class="crm-event-manage-fee-form-block-discount_start_date"> {$form.discount_start_date.$index.html} </td>
+           <td class="crm-event-manage-fee-form-block-discount_end_date"> {$form.discount_end_date.$index.html} </td>
      </tr>
     {/section}
     </table>
         <div id="discountLink" class="add-remove-link">
-           <a onclick="showHideDiscountRow( 'discount', true);return false;" id="discountLink" href="#" class="form-link"><img src="{$config->resourceBase}i/TreePlus.gif" class="action-icon" alt="{ts}show field or section{/ts}"/>{ts}another discount set{/ts}</a>
+           <a onclick="showHideDiscountRow( 'discount', true);return false;" id="discountLink" href="#" class="form-link"><i class="crm-i fa-plus action-icon" aria-hidden="true"></i> {ts}another discount set{/ts}</a>
         </div>
         {$form._qf_Fee_submit.html}
 
@@ -224,7 +208,7 @@
             {section name=loop1 start=1 loop=6}
                      {assign var=idy value=$smarty.section.loop1.index}
           {if $form.discount_name.$idy.value}
-                <td>{$form.discounted_value.$idx.$idy.html|crmMoney}</td>
+                <td>{$form.discounted_value.$idx.$idy.html}</td>
           {/if}
             {/section}
             <td class="even-row">{$form.discounted_default.$idx.html}</td>

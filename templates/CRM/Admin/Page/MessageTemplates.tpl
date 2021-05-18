@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {capture assign=crmURL}{crmURL p='civicrm/admin/messageTemplates/add' q="action=add&reset=1"}{/capture}
@@ -89,14 +73,23 @@
 <div class="crm-content-block crm-block">
   <div id='mainTabContainer'>
     <ul>
-      <li id='tab_user'>    <a href='#user'     title='{ts}User-driven Messages{/ts}'>    {ts}User-driven Messages{/ts}    </a></li>
-      <li id='tab_workflow'><a href='#workflow' title='{ts}System Workflow Messages{/ts}'>{ts}System Workflow Messages{/ts}</a></li>
+      {if $canEditUserDrivenMessageTemplates or $canEditMessageTemplates}
+        <li id='tab_user'><a href='#user' title='{ts}User-driven Messages{/ts}'>{ts}User-driven Messages{/ts}</a></li>
+      {/if}
+      {if $canEditSystemTemplates or $canEditMessageTemplates}
+        <li id='tab_workflow'><a href='#workflow' title='{ts}System Workflow Messages{/ts}'>{ts}System Workflow Messages{/ts}</a></li>
+      {/if}
     </ul>
 
     {* create two selector tabs, first being the ‘user’ one, the second being the ‘workflow’ one *}
     {include file="CRM/common/enableDisableApi.tpl"}
     {include file="CRM/common/jsortable.tpl"}
     {foreach from=$rows item=template_row key=type}
+      {if (
+        $type ne 'userTemplates' and ($canEditSystemTemplates or $canEditMessageTemplates)
+      ) or (
+        $type eq 'userTemplates'and ($canEditUserDrivenMessageTemplates or $canEditMessageTemplates)
+      )}
       <div id="{if $type eq 'userTemplates'}user{else}workflow{/if}" class='ui-tabs-panel ui-widget-content ui-corner-bottom'>
           <div class="help">
           {if $type eq 'userTemplates'}
@@ -154,25 +147,16 @@
 
             {if empty( $template_row) }
                 <div class="messages status no-popup">
-                    <div class="icon inform-icon"></div>&nbsp;
+                    {icon icon="fa-info-circle"}{/icon}
                     {ts 1=$crmURL}There are no User-driven Message Templates entered. You can <a href='%1'>add one</a>.{/ts}
                 </div>
             {/if}
          </div>
       </div>
+      {/if}
     {/foreach}
   </div>
 </div>
-  <script type='text/javascript'>
-    var selectedTab = 'user';
-    {if $selectedChild}selectedTab = '{$selectedChild}';{/if}
-    {literal}
-      CRM.$(function($) {
-        var tabIndex = $('#tab_' + selectedTab).prevAll().length
-        $("#mainTabContainer").tabs( {active: tabIndex} );
-      });
-    {/literal}
-  </script>
 
 {elseif $action ne 1 and $action ne 2 and $action ne 4 and $action ne 8}
   <div class="messages status no-popup">

@@ -41,6 +41,7 @@ D56PACK=0
 D7DIR=0
 J5PACK=0
 WP5PACK=0
+PATCHPACK=0
 SK5PACK=0
 L10NPACK=0
 REPOREPORT=0
@@ -61,6 +62,7 @@ display_usage()
   echo "  d7_dir         - generate Drupal7 PHP5 module, but output to a directory, no tarball"
   echo "  Joomla|j5      - generate Joomla PHP5 module"
   echo "  WordPress|wp5  - generate Wordpress PHP5 module"
+  echo "  patchset       - generate a tarball with patch files"
   echo "  sk             - generate Drupal StarterKit module"
   echo
   echo "You also need to have distmaker.conf file in place."
@@ -123,7 +125,7 @@ check_conf()
     echo "Current directory is : $THIS_DIR";
     exit 1
   else
-    export DM_SOURCEDIR DM_GENFILESDIR DM_TMPDIR DM_TARGETDIR DM_PHP DM_RSYNC DM_ZIP DM_VERSION DM_REF_CORE DM_REF_DRUPAL DM_REF_DRUPAL6 DM_REF_JOOMLA DM_REF_WORDPRESS DM_REF_PACKAGES
+    export DM_SOURCEDIR DM_GENFILESDIR DM_TMPDIR DM_TARGETDIR DM_PHP DM_RSYNC DM_ZIP DM_VERSION DM_REF_CORE DM_REF_DRUPAL DM_REF_DRUPAL6 DM_REF_DRUPAL8 DM_REF_JOOMLA DM_REF_WORDPRESS DM_REF_PACKAGES
     if [ ! -d "$DM_SOURCEDIR" ]; then
       echo; echo "ERROR! " DM_SOURCEDIR "directory not found!"; echo "(if you get empty directory name, it might mean that one of necessary variables is not set)"; echo;
     fi
@@ -193,6 +195,12 @@ case $1 in
   WP5PACK=1
   ;;
 
+  ## PATCHSET export
+  patchset)
+  echo; echo "Generating patchset"; echo;
+  PATCHPACK=1
+  ;;
+
   # REPO REPORT PHP5
   report)
   echo; echo "Generating repo report module"; echo;
@@ -207,6 +215,7 @@ case $1 in
   D56PACK=1
   J5PACK=1
   WP5PACK=1
+  PATCHPACK=1
   SKPACK=1
   L10NPACK=1
   REPOREPORT=1
@@ -234,14 +243,14 @@ if [ -d "$DM_SOURCEDIR/drupal" ]; then
   dm_git_checkout "$DM_SOURCEDIR/drupal" "$DM_REF_DRUPAL"
   GENCODE_CMS=Drupal
 fi
-
-## Get latest dependencies
-dm_generate_vendor "$DM_SOURCEDIR"
-## if we already have a bower_compoents dir empty it.
-if [ -d "$DM_SOURCEDIR/bower_components" ]; then
-  rm -rf $DM_SOURCEDIR/bower_components/* 
+if [ -d "$DM_SOURCEDIR/drupal-8" ]; then
+  dm_git_checkout "$DM_SOURCEDIR/drupal-8" "$DM_REF_DRUPAL8"
 fi
-dm_generate_bower "$DM_SOURCEDIR"
+
+## Get fresh dependencies
+[ -d "$DM_SOURCEDIR/vendor" ] && rm -rf $DM_SOURCEDIR/vendor
+[ -d "$DM_SOURCEDIR/bower_components" ] && rm -rf $DM_SOURCEDIR/bower_components
+dm_generate_vendor "$DM_SOURCEDIR"
 
 # Before anything - regenerate DAOs
 
@@ -295,6 +304,11 @@ if [ "$WP5PACK" = 1 ]; then
   echo; echo "Packaging for Wordpress, PHP5 version"; echo;
   dm_git_checkout "$DM_SOURCEDIR/WordPress" "$DM_REF_WORDPRESS"
   bash $P/dists/wordpress_php5.sh
+fi
+
+if [ "$PATCHPACK" = 1 ]; then
+  echo; echo "Packaging for patchset tarball"; echo;
+  bash $P/dists/patchset.sh
 fi
 
 if [ "$REPOREPORT" = 1 ]; then

@@ -2,29 +2,18 @@
 
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
+
+use Civi\ActionSchedule\Event\MailingQueryEvent;
+use Civi\Token\AbstractTokenSubscriber;
+use Civi\Token\TokenProcessor;
+use Civi\Token\TokenRow;
 
 /**
  * Class CRM_Contribute_Tokens
@@ -34,14 +23,14 @@
  * At time of writing, we don't have any particularly special tokens -- we just
  * do some basic formatting based on the corresponding DB field.
  */
-class CRM_Contribute_Tokens extends \Civi\Token\AbstractTokenSubscriber {
+class CRM_Contribute_Tokens extends AbstractTokenSubscriber {
 
   /**
    * Get a list of tokens whose name and title match the DB fields.
    * @return array
    */
-  protected function getPassthruTokens() {
-    return array(
+  protected function getPassthruTokens(): array {
+    return [
       'contribution_page_id',
       'receive_date',
       'total_amount',
@@ -50,11 +39,11 @@ class CRM_Contribute_Tokens extends \Civi\Token\AbstractTokenSubscriber {
       'trxn_id',
       'invoice_id',
       'currency',
-      'cancel_date',
+      'contribution_cancel_date',
       'receipt_date',
       'thankyou_date',
       'tax_amount',
-    );
+    ];
   }
 
   /**
@@ -62,14 +51,15 @@ class CRM_Contribute_Tokens extends \Civi\Token\AbstractTokenSubscriber {
    *
    * @return array
    */
-  protected function getAliasTokens() {
-    return array(
+  protected function getAliasTokens(): array {
+    return [
       'id' => 'contribution_id',
       'payment_instrument' => 'payment_instrument_id',
       'source' => 'contribution_source',
       'status' => 'contribution_status_id',
       'type' => 'financial_type_id',
-    );
+      'cancel_date' => 'contribution_cancel_date',
+    ];
   }
 
   /**
@@ -96,9 +86,8 @@ class CRM_Contribute_Tokens extends \Civi\Token\AbstractTokenSubscriber {
    *
    * @return bool
    */
-  public function checkActive(\Civi\Token\TokenProcessor $processor) {
-    return
-      !empty($processor->context['actionMapping'])
+  public function checkActive(TokenProcessor $processor) {
+    return !empty($processor->context['actionMapping'])
       && $processor->context['actionMapping']->getEntity() === 'civicrm_contribution';
   }
 
@@ -107,7 +96,7 @@ class CRM_Contribute_Tokens extends \Civi\Token\AbstractTokenSubscriber {
    *
    * @param \Civi\ActionSchedule\Event\MailingQueryEvent $e
    */
-  public function alterActionScheduleQuery(\Civi\ActionSchedule\Event\MailingQueryEvent $e) {
+  public function alterActionScheduleQuery(MailingQueryEvent $e): void {
     if ($e->mapping->getEntity() !== 'civicrm_contribution') {
       return;
     }
@@ -124,12 +113,12 @@ class CRM_Contribute_Tokens extends \Civi\Token\AbstractTokenSubscriber {
   /**
    * @inheritDoc
    */
-  public function evaluateToken(\Civi\Token\TokenRow $row, $entity, $field, $prefetch = NULL) {
+  public function evaluateToken(TokenRow $row, $entity, $field, $prefetch = NULL) {
     $actionSearchResult = $row->context['actionSearchResult'];
-    $fieldValue = isset($actionSearchResult->{"contrib_$field"}) ? $actionSearchResult->{"contrib_$field"} : NULL;
+    $fieldValue = $actionSearchResult->{"contrib_$field"} ?? NULL;
 
     $aliasTokens = $this->getAliasTokens();
-    if (in_array($field, array('total_amount', 'fee_amount', 'net_amount'))) {
+    if (in_array($field, ['total_amount', 'fee_amount', 'net_amount'])) {
       return $row->format('text/plain')->tokens($entity, $field,
         \CRM_Utils_Money::format($fieldValue, $actionSearchResult->contrib_currency));
     }

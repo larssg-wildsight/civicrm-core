@@ -1,36 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
- * $Id$
- *
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Event_Page_Tab extends CRM_Core_Page {
 
@@ -58,9 +40,9 @@ class CRM_Event_Page_Tab extends CRM_Core_Page {
       $this->assign('displayName', $displayName);
       $this->ajaxResponse['tabCount'] = CRM_Contact_BAO_Contact::getCountComponent('participant', $this->_contactId);
       // Refresh other tabs with related data
-      $this->ajaxResponse['updateTabs'] = array(
+      $this->ajaxResponse['updateTabs'] = [
         '#tab_activity' => CRM_Contact_BAO_Contact::getCountComponent('activity', $this->_contactId),
-      );
+      ];
       if (CRM_Core_Permission::access('CiviContribute')) {
         $this->ajaxResponse['updateTabs']['#tab_contribute'] = CRM_Contact_BAO_Contact::getCountComponent('contribution', $this->_contactId);
       }
@@ -95,7 +77,7 @@ class CRM_Event_Page_Tab extends CRM_Core_Page {
    */
   public function edit() {
     // set https for offline cc transaction
-    $mode = CRM_Utils_Request::retrieve('mode', 'String', $this);
+    $mode = CRM_Utils_Request::retrieve('mode', 'Alphanumeric', $this);
     if ($mode == 'test' || $mode == 'live') {
       CRM_Utils_System::redirectToSSL();
     }
@@ -118,16 +100,29 @@ class CRM_Event_Page_Tab extends CRM_Core_Page {
     return $controller->run();
   }
 
+  public function delete() {
+    $controller = new CRM_Core_Controller_Simple(
+      'CRM_Event_Form_Participant',
+      ts('Delete Participant'),
+      $this->_action
+    );
+
+    $controller->setEmbedded(TRUE);
+    $controller->set('id', $this->_id);
+    $controller->set('cid', $this->_contactId);
+    $controller->run();
+  }
+
   public function preProcess() {
-    $context = CRM_Utils_Request::retrieve('context', 'String', $this);
+    $context = CRM_Utils_Request::retrieve('context', 'Alphanumeric', $this);
     $this->_action = CRM_Utils_Request::retrieve('action', 'String', $this, FALSE, 'browse');
     $this->_id = CRM_Utils_Request::retrieve('id', 'Positive', $this);
 
-    if ($context == 'standalone') {
+    if (($context == 'standalone' || $context === 'search') && $this->_action !== CRM_Core_Action::VIEW) {
       $this->_action = CRM_Core_Action::ADD;
     }
     else {
-      $this->_contactId = CRM_Utils_Request::retrieve('cid', 'Positive', $this, TRUE);
+      $this->_contactId = CRM_Utils_Request::retrieve('cid', 'Positive', $this);
       $this->assign('contactId', $this->_contactId);
 
       // check logged in url permission
@@ -167,12 +162,11 @@ class CRM_Event_Page_Tab extends CRM_Core_Page {
     if ($this->_action & CRM_Core_Action::VIEW) {
       $this->view();
     }
-    elseif ($this->_action & (CRM_Core_Action::UPDATE |
-        CRM_Core_Action::ADD |
-        CRM_Core_Action::DELETE
-      )
-    ) {
+    elseif ($this->_action & (CRM_Core_Action::UPDATE | CRM_Core_Action::ADD)) {
       $this->edit();
+    }
+    elseif ($this->_action & (CRM_Core_Action::DELETE | CRM_Core_Action::DETACH)) {
+      $this->delete();
     }
     else {
       $this->browse();
@@ -293,7 +287,7 @@ class CRM_Event_Page_Tab extends CRM_Core_Page {
       );
       $controller->setEmbedded(TRUE);
       $controller->set('force', 1);
-      $controller->set('cid', $this->_contactId);
+      $controller->set('skip_cid', TRUE);
       $controller->set('participantId', $this->_id);
       $controller->set('context', 'contribution');
       $controller->process();

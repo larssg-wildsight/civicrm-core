@@ -5,15 +5,12 @@
  * @group headless
  */
 class CRM_UF_Page_ProfileEditorTest extends CiviUnitTestCase {
-  public function setUp() {
-    parent::setUp();
-  }
 
   /**
    * Spot check a few fields that should appear in schema.
    */
   public function testGetSchema() {
-    $schema = CRM_UF_Page_ProfileEditor::getSchema(array('IndividualModel', 'ActivityModel'));
+    $schema = CRM_UF_Page_ProfileEditor::getSchema(['IndividualModel', 'ActivityModel']);
     foreach ($schema as $entityName => $entityDef) {
       foreach ($entityDef['schema'] as $fieldName => $fieldDef) {
         $this->assertNotEmpty($fieldDef['type']);
@@ -42,6 +39,30 @@ class CRM_UF_Page_ProfileEditorTest extends CiviUnitTestCase {
     $this->assertTrue(empty($schema['IndividualModel']['schema']['activity_subject']));
     $this->assertTrue(empty($schema['ActivityModel']['schema']['street_address']));
 
+  }
+
+  /**
+   * Test that with an extension adding in UF Fields for an enttiy that isn't supplied by Core e.g. Grant
+   * That an appropriate entitytype can be specfied in the backbone.marionette profile editor e.g. GrantModel
+   */
+  public function testGetSchemaWithHooks() {
+    CRM_Utils_Hook::singleton()->setHook('civicrm_alterUFFields', [$this, 'hook_civicrm_alterUFFIelds']);
+    $schema = CRM_UF_Page_ProfileEditor::getSchema(['IndividualModel', 'GrantModel']);
+    $this->assertEquals('Grant', $schema['GrantModel']['schema']['grant_decision_date']['civiFieldType']);
+  }
+
+  /**
+   * Tries to load up the profile schema for a model where there is no corresponding set of fields avaliable.
+   *
+   * @expectedException \CRM_Core_Exception
+   */
+  public function testGetSchemaWithHooksWithInvalidModel() {
+    CRM_Utils_Hook::singleton()->setHook('civicrm_alterUFFields', [$this, 'hook_civicrm_alterUFFIelds']);
+    $schema = CRM_UF_Page_ProfileEditor::getSchema(['IndividualModel', 'GrantModel', 'PledgeModel']);
+  }
+
+  public function hook_civicrm_alterUFFIelds(&$fields) {
+    $fields['Grant'] = CRM_Grant_BAO_Grant::exportableFields();
   }
 
 }

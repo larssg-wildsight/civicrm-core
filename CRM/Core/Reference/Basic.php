@@ -72,6 +72,14 @@ class CRM_Core_Reference_Basic implements CRM_Core_Reference_Interface {
   }
 
   /**
+   * @return array
+   *   [table_name => EntityName]
+   */
+  public function getTargetEntities(): array {
+    return [$this->targetTable => CRM_Core_DAO_AllCoreTables::getEntityNameForTable($this->targetTable)];
+  }
+
+  /**
    * @param CRM_Core_DAO $targetDao
    *
    * @return Object
@@ -83,9 +91,9 @@ class CRM_Core_Reference_Basic implements CRM_Core_Reference_Interface {
     if (!CRM_Core_BAO_SchemaHandler::checkIfFieldExists($this->getReferenceTable(), 'id')) {
       $select = '*';
     }
-    $params = array(
-      1 => array($targetDao->$targetColumn, 'String'),
-    );
+    $params = [
+      1 => [$targetDao->$targetColumn, 'String'],
+    ];
     $sql = <<<EOS
 SELECT {$select}
 FROM {$this->getReferenceTable()}
@@ -104,22 +112,22 @@ EOS;
    */
   public function getReferenceCount($targetDao) {
     $targetColumn = $this->getTargetKey();
-    $params = array(
-      1 => array($targetDao->$targetColumn, 'String'),
-    );
+    $params = [
+      1 => [$targetDao->$targetColumn, 'String'],
+    ];
     $sql = <<<EOS
 SELECT count(*)
 FROM {$this->getReferenceTable()}
 WHERE {$this->getReferenceKey()} = %1
 EOS;
 
-    return array(
-      'name' => implode(':', array('sql', $this->getReferenceTable(), $this->getReferenceKey())),
+    return [
+      'name' => implode(':', ['sql', $this->getReferenceTable(), $this->getReferenceKey()]),
       'type' => get_class($this),
       'table' => $this->getReferenceTable(),
       'key' => $this->getReferenceKey(),
       'count' => CRM_Core_DAO::singleValueQuery($sql, $params),
-    );
+    ];
   }
 
 }

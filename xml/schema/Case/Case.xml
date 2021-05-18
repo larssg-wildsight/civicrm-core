@@ -6,6 +6,9 @@
   <comment>This table stores information about cases grouping activities.</comment>
   <add>1.8</add>
   <log>true</log>
+  <icon>fa-folder-open</icon>
+  <labelField>subject</labelField>
+  <component>CiviCase</component>
   <field>
     <name>id</name>
     <type>int unsigned</type>
@@ -14,6 +17,9 @@
     <import>true</import>
     <title>Case ID</title>
     <comment>Unique Case ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>1.8</add>
   </field>
   <primaryKey>
@@ -21,32 +27,16 @@
     <autoincrement>true</autoincrement>
   </primaryKey>
   <field>
-    <name>contact_id</name>
-    <type>int unsigned</type>
-    <uniqueName>case_contact_id</uniqueName>
-    <required>true</required>
-    <comment>Contact ID of contact record given case belongs to.</comment>
-    <add>1.8</add>
-    <drop>2.1</drop>
-  </field>
-  <foreignKey>
-    <name>contact_id</name>
-    <table>civicrm_contact</table>
-    <key>id</key>
-    <add>1.8</add>
-    <drop>2.1</drop>
-    <onDelete>CASCADE</onDelete>
-  </foreignKey>
-  <field>
     <name>case_type_id</name>
     <type>int unsigned</type>
     <import>true</import>
     <export>false</export>
-    <title>Case Type</title>
+    <title>Case Type ID</title>
     <required>true</required>
     <comment>FK to civicrm_case_type.id</comment>
     <html>
       <type>Select</type>
+      <label>Case Type</label>
     </html>
     <pseudoconstant>
       <table>civicrm_case_type</table>
@@ -66,51 +56,6 @@
     <key>id</key>
     <add>4.5</add>
   </foreignKey>
-  <field>
-    <name>casetag1_id</name>
-    <type>varchar</type>
-    <length>128</length>
-    <required>true</required>
-    <comment>Id of first case category.</comment>
-    <add>1.8</add>
-    <drop>2.0</drop>
-  </field>
-  <index>
-    <name>index_casetag1_id</name>
-    <fieldName>casetag1_id</fieldName>
-    <add>1.8</add>
-    <drop>2.0</drop>
-  </index>
-  <field>
-    <name>casetag2_id</name>
-    <type>varchar</type>
-    <length>128</length>
-    <required>true</required>
-    <comment>Id of second case category.</comment>
-    <add>1.8</add>
-    <drop>2.0</drop>
-  </field>
-  <index>
-    <name>index_casetag2_id</name>
-    <fieldName>casetag2_id</fieldName>
-    <add>1.8</add>
-    <drop>2.0</drop>
-  </index>
-  <field>
-    <name>casetag3_id</name>
-    <type>varchar</type>
-    <length>128</length>
-    <required>true</required>
-    <comment>Id of third case category.</comment>
-    <add>1.8</add>
-    <drop>2.0</drop>
-  </field>
-  <index>
-    <name>index_casetag3_id</name>
-    <fieldName>casetag3_id</fieldName>
-    <add>1.8</add>
-    <drop>2.0</drop>
-  </index>
   <field>
     <name>subject</name>
     <type>varchar</type>
@@ -133,6 +78,7 @@
     <comment>Date on which given case starts.</comment>
     <html>
       <type>Select Date</type>
+      <formatType>activityDateTime</formatType>
     </html>
     <add>1.8</add>
   </field>
@@ -145,6 +91,7 @@
     <comment>Date on which given case ends.</comment>
     <html>
       <type>Select Date</type>
+      <formatType>activityDateTime</formatType>
     </html>
     <add>1.8</add>
   </field>
@@ -155,8 +102,9 @@
       <type>TextArea</type>
       <rows>8</rows>
       <cols>60</cols>
+      <label>Details</label>
     </html>
-    <comment>Details about the meeting (agenda, notes, etc).</comment>
+    <comment>Details populated from Open Case. Only used in the CiviCase extension.</comment>
     <add>1.8</add>
   </field>
   <field>
@@ -167,7 +115,7 @@
     <import>true</import>
     <export>false</export>
     <title>Case Status</title>
-    <comment>Id of case status.</comment>
+    <comment>ID of case status.</comment>
     <pseudoconstant>
       <optionGroupName>case_status</optionGroupName>
     </pseudoconstant>
@@ -183,7 +131,9 @@
     <type>boolean</type>
     <default>0</default>
     <import>true</import>
-    <title>Case Deleted</title>
+    <html>
+      <type>CheckBox</type>
+    </html>
     <add>2.2</add>
   </field>
   <index>
@@ -199,6 +149,9 @@
     <required>false</required>
     <export>true</export>
     <default>NULL</default>
+    <html>
+      <label>Created Date</label>
+    </html>
     <add>4.7</add>
   </field>
   <field>
@@ -209,6 +162,10 @@
     <required>false</required>
     <export>true</export>
     <default>CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP</default>
+    <html>
+      <label>Modified Date</label>
+    </html>
+    <readonly>true</readonly>
     <add>4.7</add>
   </field>
 </table>

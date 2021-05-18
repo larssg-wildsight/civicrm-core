@@ -15,6 +15,7 @@ class CRM_Core_CodeGen_Specification {
    * @param $schemaPath
    * @param string $buildVersion
    *   Which version of the schema to build.
+   * @param bool $verbose
    */
   public function parse($schemaPath, $buildVersion, $verbose = TRUE) {
     $this->buildVersion = $buildVersion;
@@ -29,9 +30,9 @@ class CRM_Core_CodeGen_Specification {
     }
     $this->database = &$this->getDatabase($dbXML);
 
-    $this->classNames = array();
+    $this->classNames = [];
 
-    # TODO: peel DAO-specific stuff out of getTables, and spec reading into its own class
+    // TODO: peel DAO-specific stuff out of getTables, and spec reading into its own class
     if ($verbose) {
       echo "Extracting table information\n";
     }
@@ -66,11 +67,12 @@ class CRM_Core_CodeGen_Specification {
    * @return array
    */
   public function &getDatabase(&$dbXML) {
-    $database = array('name' => trim((string ) $dbXML->name));
+    $database = ['name' => trim((string ) $dbXML->name)];
 
     $attributes = '';
     $this->checkAndAppend($attributes, $dbXML, 'character_set', 'DEFAULT CHARACTER SET ', '');
     $this->checkAndAppend($attributes, $dbXML, 'collate', 'COLLATE ', '');
+    $attributes .= ' ROW_FORMAT=DYNAMIC';
     $database['attributes'] = $attributes;
 
     $tableAttributes_modern = $tableAttributes_simple = '';
@@ -91,14 +93,14 @@ class CRM_Core_CodeGen_Specification {
    * @return array
    */
   public function getTables($dbXML, &$database) {
-    $tables = array();
+    $tables = [];
     foreach ($dbXML->tables as $tablesXML) {
       foreach ($tablesXML->table as $tableXML) {
-        if ($this->value('drop', $tableXML, 0) > 0 and $this->value('drop', $tableXML, 0) <= $this->buildVersion) {
+        if ($this->value('drop', $tableXML, 0) > 0 && version_compare($this->value('drop', $tableXML, 0), $this->buildVersion, '<=')) {
           continue;
         }
 
-        if ($this->value('add', $tableXML, 0) <= $this->buildVersion) {
+        if (version_compare($this->value('add', $tableXML, 0), $this->buildVersion, '<=')) {
           $this->getTable($tableXML, $database, $tables);
         }
       }
@@ -145,7 +147,7 @@ class CRM_Core_CodeGen_Specification {
    * @return array
    */
   public function orderTables(&$tables) {
-    $ordered = array();
+    $ordered = [];
 
     while (!empty($tables)) {
       foreach (array_keys($tables) as $name) {
@@ -191,6 +193,7 @@ class CRM_Core_CodeGen_Specification {
     $sourceFile = "xml/schema/{$base}/{$klass}.xml";
     $daoPath = "{$base}/DAO/";
     $baoPath = __DIR__ . '/../../../' . str_replace(' ', '', "{$base}/BAO/");
+    $useBao = $this->value('useBao', $tableXML, file_exists($baoPath . $klass . '.php'));
     $pre = str_replace('/', '_', $daoPath);
     $this->classNames[$name] = $pre . $klass;
 
@@ -202,15 +205,23 @@ class CRM_Core_CodeGen_Specification {
       }
     }
 
-    $table = array(
+    $titleFromClass = preg_replace('/([a-z])([A-Z])/', '$1 $2', $klass);
+    $table = [
       'name' => $name,
       'base' => $daoPath,
       'sourceFile' => $sourceFile,
       'fileName' => $klass . '.php',
       'objectName' => $klass,
+      'title' => $tableXML->title ?? $titleFromClass,
+      'titlePlural' => $tableXML->titlePlural ?? CRM_Utils_String::pluralize($tableXML->title ?? $titleFromClass),
+      'icon' => $tableXML->icon ?? NULL,
+      'labelField' => $tableXML->labelField ?? NULL,
+      'add' => $tableXML->add ?? NULL,
+      'component' => $tableXML->component ?? NULL,
+      'paths' => (array) ($tableXML->paths ?? []),
       'labelName' => substr($name, 8),
       'className' => $this->classNames[$name],
-      'bao' => (file_exists($baoPath . $klass . '.php') ? str_replace('DAO', 'BAO', $this->classNames[$name]) : $this->classNames[$name]),
+      'bao' => ($useBao ? str_replace('DAO', 'BAO', $this->classNames[$name]) : $this->classNames[$name]),
       'entity' => $klass,
       'attributes_simple' => trim($database['tableAttributes_simple']),
       'attributes_modern' => trim($database['tableAttributes_modern']),
@@ -218,15 +229,15 @@ class CRM_Core_CodeGen_Specification {
       'localizable' => $localizable,
       'log' => $this->value('log', $tableXML, 'false'),
       'archive' => $this->value('archive', $tableXML, 'false'),
-    );
+    ];
 
-    $fields = array();
+    $fields = [];
     foreach ($tableXML->field as $fieldXML) {
-      if ($this->value('drop', $fieldXML, 0) > 0 and $this->value('drop', $fieldXML, 0) <= $this->buildVersion) {
+      if ($this->value('drop', $fieldXML, 0) > 0 && version_compare($this->value('drop', $fieldXML, 0), $this->buildVersion, '<=')) {
         continue;
       }
 
-      if ($this->value('add', $fieldXML, 0) <= $this->buildVersion) {
+      if (version_compare($this->value('add', $fieldXML, 0), $this->buildVersion, '<=')) {
         $this->getField($fieldXML, $fields);
       }
     }
@@ -238,9 +249,9 @@ class CRM_Core_CodeGen_Specification {
     }
 
     if ($this->value('index', $tableXML)) {
-      $index = array();
+      $index = [];
       foreach ($tableXML->index as $indexXML) {
-        if ($this->value('drop', $indexXML, 0) > 0 and $this->value('drop', $indexXML, 0) <= $this->buildVersion) {
+        if ($this->value('drop', $indexXML, 0) > 0 && version_compare($this->value('drop', $indexXML, 0), $this->buildVersion, '<=')) {
           continue;
         }
 
@@ -251,13 +262,13 @@ class CRM_Core_CodeGen_Specification {
     }
 
     if ($this->value('foreignKey', $tableXML)) {
-      $foreign = array();
+      $foreign = [];
       foreach ($tableXML->foreignKey as $foreignXML) {
 
-        if ($this->value('drop', $foreignXML, 0) > 0 and $this->value('drop', $foreignXML, 0) <= $this->buildVersion) {
+        if ($this->value('drop', $foreignXML, 0) > 0 && version_compare($this->value('drop', $foreignXML, 0), $this->buildVersion, '<=')) {
           continue;
         }
-        if ($this->value('add', $foreignXML, 0) <= $this->buildVersion) {
+        if (version_compare($this->value('add', $foreignXML, 0), $this->buildVersion, '<=')) {
           $this->getForeignKey($foreignXML, $fields, $foreign, $name);
         }
       }
@@ -265,12 +276,12 @@ class CRM_Core_CodeGen_Specification {
     }
 
     if ($this->value('dynamicForeignKey', $tableXML)) {
-      $dynamicForeign = array();
+      $dynamicForeign = [];
       foreach ($tableXML->dynamicForeignKey as $foreignXML) {
-        if ($this->value('drop', $foreignXML, 0) > 0 and $this->value('drop', $foreignXML, 0) <= $this->buildVersion) {
+        if ($this->value('drop', $foreignXML, 0) > 0 && version_compare($this->value('drop', $foreignXML, 0), $this->buildVersion, '<=')) {
           continue;
         }
-        if ($this->value('add', $foreignXML, 0) <= $this->buildVersion) {
+        if (version_compare($this->value('add', $foreignXML, 0), $this->buildVersion, '<=')) {
           $this->getDynamicForeignKey($foreignXML, $dynamicForeign, $name);
         }
       }
@@ -286,7 +297,7 @@ class CRM_Core_CodeGen_Specification {
    */
   public function getField(&$fieldXML, &$fields) {
     $name = trim((string ) $fieldXML->name);
-    $field = array('name' => $name, 'localizable' => ((bool) $fieldXML->localizable) ? 1 : 0);
+    $field = ['name' => $name, 'localizable' => ((bool) $fieldXML->localizable) ? 1 : 0];
     $type = (string ) $fieldXML->type;
     switch ($type) {
       case 'varchar':
@@ -306,8 +317,6 @@ class CRM_Core_CodeGen_Specification {
         $field['cols'] = isset($fieldXML->html) ? $this->value('cols', $fieldXML->html) : NULL;
         break;
 
-      break;
-
       case 'datetime':
         $field['sqlType'] = $field['phpType'] = $type;
         $field['crmType'] = 'CRM_Utils_Type::T_DATE + CRM_Utils_Type::T_TIME';
@@ -317,7 +326,7 @@ class CRM_Core_CodeGen_Specification {
         // need this case since some versions of mysql do not have boolean as a valid column type and hence it
         // is changed to tinyint. hopefully after 2 yrs this case can be removed.
         $field['sqlType'] = 'tinyint';
-        $field['phpType'] = $type;
+        $field['phpType'] = 'bool';
         $field['crmType'] = 'CRM_Utils_Type::T_' . strtoupper($type);
         break;
 
@@ -326,7 +335,7 @@ class CRM_Core_CodeGen_Specification {
         $field['sqlType'] = 'decimal(' . $length . ')';
         $field['phpType'] = 'float';
         $field['crmType'] = 'CRM_Utils_Type::T_MONEY';
-        $field['precision'] = $length;
+        $field['precision'] = $length . ',';
         break;
 
       case 'float':
@@ -336,12 +345,14 @@ class CRM_Core_CodeGen_Specification {
         break;
 
       default:
-        $field['sqlType'] = $field['phpType'] = $type;
-        if ($type == 'int unsigned') {
+        $field['phpType'] = $this->value('phpType', $fieldXML, $type);
+        $field['sqlType'] = $type;
+        if ($type == 'int unsigned' || $type == 'tinyint') {
+          $field['phpType'] = 'int';
           $field['crmType'] = 'CRM_Utils_Type::T_INT';
         }
         else {
-          $field['crmType'] = 'CRM_Utils_Type::T_' . strtoupper($type);
+          $field['crmType'] = $this->value('crmType', $fieldXML, 'CRM_Utils_Type::T_' . strtoupper($type));
         }
         break;
     }
@@ -364,14 +375,26 @@ class CRM_Core_CodeGen_Specification {
     }
     $field['headerPattern'] = $this->value('headerPattern', $fieldXML);
     $field['dataPattern'] = $this->value('dataPattern', $fieldXML);
+    $field['readonly'] = $this->value('readonly', $fieldXML);
     $field['uniqueName'] = $this->value('uniqueName', $fieldXML);
+    $field['uniqueTitle'] = $this->value('uniqueTitle', $fieldXML);
     $field['serialize'] = $this->value('serialize', $fieldXML);
+    $field['component'] = $this->value('component', $fieldXML);
     $field['html'] = $this->value('html', $fieldXML);
+    $field['contactType'] = $this->value('contactType', $fieldXML);
+    if (isset($fieldXML->permission)) {
+      $field['permission'] = trim($this->value('permission', $fieldXML));
+      $field['permission'] = $field['permission'] ? array_filter(array_map('trim', explode(',', $field['permission']))) : [];
+      if (isset($fieldXML->permission->or)) {
+        $field['permission'][] = array_filter(array_map('trim', explode(',', $fieldXML->permission->or)));
+      }
+    }
     if (!empty($field['html'])) {
-      $validOptions = array(
+      $validOptions = [
         'type',
         'formatType',
         'label',
+        'controlField',
         /* Fixme: prior to CRM-13497 these were in a flat structure
         // CRM-13497 moved them to be nested within 'html' but there's no point
         // making that change in the DAOs right now since we are in the process of
@@ -380,8 +403,8 @@ class CRM_Core_CodeGen_Specification {
         'rows',
         'cols',
         'size', */
-      );
-      $field['html'] = array();
+      ];
+      $field['html'] = [];
       foreach ($validOptions as $htmlOption) {
         if (!empty($fieldXML->html->$htmlOption)) {
           $field['html'][$htmlOption] = $this->value($htmlOption, $fieldXML->html);
@@ -396,18 +419,21 @@ class CRM_Core_CodeGen_Specification {
       }
       else {
         // default
-        $field['widget'] = array('type' => 'Text');
+        $field['widget'] = ['type' => 'Text'];
       }
       if (isset($fieldXML->required)) {
         $field['widget']['required'] = $this->value('required', $fieldXML);
       }
     }
-
+    if (isset($fieldXML->localize_context)) {
+      $field['localize_context'] = $fieldXML->localize_context;
+    }
+    $field['add'] = $this->value('add', $fieldXML);
     $field['pseudoconstant'] = $this->value('pseudoconstant', $fieldXML);
     if (!empty($field['pseudoconstant'])) {
       //ok this is a bit long-winded but it gets there & is consistent with above approach
-      $field['pseudoconstant'] = array();
-      $validOptions = array(
+      $field['pseudoconstant'] = [];
+      $validOptions = [
         // Fields can specify EITHER optionGroupName OR table, not both
         // (since declaring optionGroupName means we are using the civicrm_option_value table)
         'optionGroupName',
@@ -417,13 +443,15 @@ class CRM_Core_CodeGen_Specification {
         'labelColumn',
         // Non-translated machine name for programmatic lookup. Defaults to 'name' if that column exists
         'nameColumn',
+        // Column to fetch in "abbreviate" context
+        'abbrColumn',
         // Where clause snippet (will be joined to the rest of the query with AND operator)
         'condition',
         // callback function incase of static arrays
         'callback',
         // Path to options edit form
         'optionEditPath',
-      );
+      ];
       foreach ($validOptions as $pseudoOption) {
         if (!empty($fieldXML->pseudoconstant->$pseudoOption)) {
           $field['pseudoconstant'][$pseudoOption] = $this->value($pseudoOption, $fieldXML->pseudoconstant);
@@ -482,10 +510,10 @@ class CRM_Core_CodeGen_Specification {
       $fields[$name]['autoincrement'] = $auto;
     }
     $fields[$name]['autoincrement'] = $auto;
-    $primaryKey = array(
+    $primaryKey = [
       'name' => $name,
       'autoincrement' => $auto,
-    );
+    ];
 
     // populate fields
     foreach ($primaryXML->fieldName as $v) {
@@ -505,7 +533,7 @@ class CRM_Core_CodeGen_Specification {
     // all fieldnames have to be defined and should exist in schema.
     foreach ($primaryKey['field'] as $fieldName) {
       if (!$fieldName) {
-        echo "Invalid field defination for index $name\n";
+        echo "Invalid field definition for index '$name' in table ${table['name']}\n";
         return;
       }
       $parenOffset = strpos($fieldName, '(');
@@ -513,7 +541,7 @@ class CRM_Core_CodeGen_Specification {
         $fieldName = substr($fieldName, 0, $parenOffset);
       }
       if (!array_key_exists($fieldName, $fields)) {
-        echo "Table does not contain $fieldName\n";
+        echo "Missing definition of field '$fieldName' for index '$name' in table ${table['name']}\n";
         print_r($fields);
         exit();
       }
@@ -531,11 +559,11 @@ class CRM_Core_CodeGen_Specification {
     //echo "\n\n*******************************************************\n";
     //echo "entering getIndex\n";
 
-    $index = array();
+    $index = [];
     // empty index name is fine
     $indexName = trim((string) $indexXML->name);
     $index['name'] = $indexName;
-    $index['field'] = array();
+    $index['field'] = [];
 
     // populate fields
     foreach ($indexXML->fieldName as $v) {
@@ -569,7 +597,7 @@ class CRM_Core_CodeGen_Specification {
     // all fieldnames have to be defined and should exist in schema.
     foreach ($index['field'] as $fieldName) {
       if (!$fieldName) {
-        echo "Invalid field defination for index $indexName\n";
+        echo "Invalid field definition for index '$indexName'\n";
         return;
       }
       $parenOffset = strpos($fieldName, '(');
@@ -577,7 +605,7 @@ class CRM_Core_CodeGen_Specification {
         $fieldName = substr($fieldName, 0, $parenOffset);
       }
       if (!array_key_exists($fieldName, $fields)) {
-        echo "Table does not contain $fieldName\n";
+        echo "Missing definition of field '$fieldName' for index '$indexName'. Fields defined:\n";
         print_r($fields);
         exit();
       }
@@ -596,13 +624,13 @@ class CRM_Core_CodeGen_Specification {
 
     /** need to make sure there is a field of type name */
     if (!array_key_exists($name, $fields)) {
-      echo "foreign $name in $currentTableName does not have a field definition, ignoring\n";
+      echo "Foreign key '$name' in $currentTableName does not have a field definition, ignoring\n";
       return;
     }
 
     /** need to check for existence of table and key **/
     $table = trim($this->value('table', $foreignXML));
-    $foreignKey = array(
+    $foreignKey = [
       'name' => $name,
       'table' => $table,
       'uniqName' => "FK_{$currentTableName}_{$name}",
@@ -612,7 +640,7 @@ class CRM_Core_CodeGen_Specification {
       // we do this matching in a separate phase (resolveForeignKeys)
       'className' => NULL,
       'onDelete' => $this->value('onDelete', $foreignXML, FALSE),
-    );
+    ];
     $foreignKeys[$name] = &$foreignKey;
   }
 
@@ -621,11 +649,11 @@ class CRM_Core_CodeGen_Specification {
    * @param $dynamicForeignKeys
    */
   public function getDynamicForeignKey(&$foreignXML, &$dynamicForeignKeys) {
-    $foreignKey = array(
+    $foreignKey = [
       'idColumn' => trim($foreignXML->idColumn),
       'typeColumn' => trim($foreignXML->typeColumn),
       'key' => trim($this->value('key', $foreignXML)),
-    );
+    ];
     $dynamicForeignKeys[] = $foreignKey;
   }
 
@@ -707,7 +735,7 @@ class CRM_Core_CodeGen_Specification {
     // Infer from <length> tag if <size> was not explicitly set or was invalid
     // This map is slightly different from CRM_Core_Form_Renderer::$_sizeMapper
     // Because we usually want fields to render as smaller than their maxlength
-    $sizes = array(
+    $sizes = [
       2 => 'TWO',
       4 => 'FOUR',
       6 => 'SIX',
@@ -715,7 +743,7 @@ class CRM_Core_CodeGen_Specification {
       16 => 'TWELVE',
       32 => 'MEDIUM',
       64 => 'BIG',
-    );
+    ];
     foreach ($sizes as $length => $name) {
       if ($fieldXML->length <= $length) {
         return "CRM_Utils_Type::$name";

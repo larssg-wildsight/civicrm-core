@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -50,7 +34,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     }
 
     /** @var \Drupal\user\Entity\User $account */
-    $account = entity_create('user');
+    $account = \Drupal::entityTypeManager()->getStorage('user')->create();
     $account->setUsername($params['cms_name'])->setEmail($params[$mail]);
 
     // Allow user to set password only if they are an admin or if
@@ -65,13 +49,16 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     if ($user_register_conf != 'visitors' && !$user->hasPermission('administer users')) {
       $account->block();
     }
-    elseif (!$verify_mail_conf) {
+    else {
       $account->activate();
     }
 
     // Validate the user object
     $violations = $account->validate();
     if (count($violations)) {
+      foreach ($violations as $violation) {
+        CRM_Core_Session::setStatus($violation->getPropertyPath() . ': ' . $violation->getMessage(), '', 'alert');
+      }
       return FALSE;
     }
 
@@ -111,7 +98,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     }
 
     // If this is a user creating their own account, login them in!
-    if ($account->isActive() && $user->isAnonymous()) {
+    if (!$verify_mail_conf && $account->isActive() && $user->isAnonymous()) {
       \user_login_finalize($account);
     }
 
@@ -122,7 +109,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    * @inheritDoc
    */
   public function updateCMSName($ufID, $email) {
-    $user = entity_load('user', $ufID);
+    $user = \Drupal::entityTypeManager()->getStorage('user')->load($ufID);
     if ($user && $user->getEmail() != $email) {
       $user->setEmail($email);
 
@@ -147,33 +134,33 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     if (!empty($params['name'])) {
       $name = $params['name'];
 
-      $user = entity_create('user');
+      $user = \Drupal::entityTypeManager()->getStorage('user')->create();
       $user->setUsername($name);
 
       // This checks for both username uniqueness and validity.
       $violations = iterator_to_array($user->validate());
       // We only care about violations on the username field; discard the rest.
-      $violations = array_filter($violations, function ($v) {
+      $violations = array_values(array_filter($violations, function ($v) {
         return $v->getPropertyPath() == 'name';
-      });
+      }));
       if (count($violations) > 0) {
         $errors['cms_name'] = (string) $violations[0]->getMessage();
       }
     }
 
     // And if we are given an email address, let's check to see if it already exists.
-    if (!empty($params[$emailName])) {
-      $mail = $params[$emailName];
+    if (!empty($params['mail'])) {
+      $mail = $params['mail'];
 
-      $user = entity_create('user');
+      $user = \Drupal::entityTypeManager()->getStorage('user')->create();
       $user->setEmail($mail);
 
       // This checks for both email uniqueness.
       $violations = iterator_to_array($user->validate());
       // We only care about violations on the email field; discard the rest.
-      $violations = array_filter($violations, function ($v) {
+      $violations = array_values(array_filter($violations, function ($v) {
         return $v->getPropertyPath() == 'mail';
-      });
+      }));
       if (count($violations) > 0) {
         $errors[$emailName] = (string) $violations[0]->getMessage();
       }
@@ -184,8 +171,8 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    * @inheritDoc
    */
   public function getLoginURL($destination = '') {
-    $query = $destination ? array('destination' => $destination) : array();
-    return \Drupal::url('user.page', array(), array('query' => $query));
+    $query = $destination ? ['destination' => $destination] : [];
+    return \Drupal\Core\Url::fromRoute('user.login', [], ['query' => $query])->toString();
   }
 
   /**
@@ -229,13 +216,13 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     if ($region != 'html-header') {
       return FALSE;
     }
-    $css = array(
+    $css = [
       '#tag' => 'link',
-      '#attributes' => array(
+      '#attributes' => [
         'href' => $url,
         'rel' => 'stylesheet',
-      ),
-    );
+      ],
+    ];
     \Drupal::service('civicrm.page_state')->addCSS($css);
     return TRUE;
   }
@@ -247,10 +234,10 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     if ($region != 'html-header') {
       return FALSE;
     }
-    $css = array(
+    $css = [
       '#tag' => 'style',
       '#value' => $code,
-    );
+    ];
     \Drupal::service('civicrm.page_state')->addCSS($css);
     return TRUE;
   }
@@ -296,31 +283,26 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     $absolute = FALSE,
     $fragment = NULL,
     $frontend = FALSE,
-    $forceBackend = FALSE
+    $forceBackend = FALSE,
+    $htmlize = TRUE
   ) {
     $query = html_entity_decode($query);
 
-    $url = \Drupal\civicrm\CivicrmHelper::parseURL("{$path}?{$query}");
+    $config = CRM_Core_Config::singleton();
+    $base = $absolute ? $config->userFrameworkBaseURL : 'internal:/';
+
+    $url = $this->parseURL("{$path}?{$query}");
 
     // Not all links that CiviCRM generates are Drupal routes, so we use the weaker ::fromUri method.
     try {
-      $url = \Drupal\Core\Url::fromUri("base:{$url['path']}", array(
+      $url = \Drupal\Core\Url::fromUri("{$base}{$url['path']}", array(
         'query' => $url['query'],
         'fragment' => $fragment,
         'absolute' => $absolute,
       ))->toString();
     }
     catch (Exception $e) {
-      // @Todo: log to watchdog
-      $url = '';
-    }
-
-    // Special case: CiviCRM passes us "*path*?*query*" as a skeleton, but asterisks
-    // are invalid and Drupal will attempt to escape them. We unescape them here:
-    if ($path == '*path*') {
-      // First remove trailing equals sign that has been added since the key '?*query*' has no value.
-      $url = rtrim($url, '=');
-      $url = urldecode($url);
+      \Drupal::logger('civicrm')->error($e->getMessage());
     }
 
     return $url;
@@ -331,13 +313,13 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    */
   public function authenticate($name, $password, $loadCMSBootstrap = FALSE, $realPath = NULL) {
     $system = new CRM_Utils_System_Drupal8();
-    $system->loadBootStrap(array(), FALSE);
+    $system->loadBootStrap([], FALSE);
 
     $uid = \Drupal::service('user.auth')->authenticate($name, $password);
     if ($uid) {
       if ($this->loadUser($name)) {
         $contact_id = CRM_Core_BAO_UFMatch::getContactId($uid);
-        return array($contact_id, $uid, mt_rand());
+        return [$contact_id, $uid, mt_rand()];
       }
     }
 
@@ -370,7 +352,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    * Determine the native ID of the CMS user.
    *
    * @param string $username
-   * @return int|NULL
+   * @return int|null
    */
   public function getUfId($username) {
     if ($id = user_load_by_name($username)->id()) {
@@ -407,7 +389,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    * @return bool
    * @Todo Handle setting cleanurls configuration for CiviCRM?
    */
-  public function loadBootStrap($params = array(), $loadUser = TRUE, $throwError = TRUE, $realPath = NULL) {
+  public function loadBootStrap($params = [], $loadUser = TRUE, $throwError = TRUE, $realPath = NULL) {
     static $run_once = FALSE;
     if ($run_once) {
       return TRUE;
@@ -422,15 +404,23 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     chdir($root);
 
     // Create a mock $request object
-    $autoloader = require_once $root . '/vendor/autoload.php';
+    $autoloader = require_once $root . '/autoload.php';
     if ($autoloader === TRUE) {
       $autoloader = ComposerAutoloaderInitDrupal8::getLoader();
     }
     // @Todo: do we need to handle case where $_SERVER has no HTTP_HOST key, ie. when run via cli?
-    $request = new \Symfony\Component\HttpFoundation\Request(array(), array(), array(), array(), array(), $_SERVER);
+    $request = new \Symfony\Component\HttpFoundation\Request([], [], [], [], [], $_SERVER);
 
     // Create a kernel and boot it.
-    \Drupal\Core\DrupalKernel::createFromRequest($request, $autoloader, 'prod')->prepareLegacyRequest($request);
+    $kernel = \Drupal\Core\DrupalKernel::createFromRequest($request, $autoloader, 'prod');
+    $kernel->boot();
+    $kernel->preHandle($request);
+    $container = $kernel->rebuildContainer();
+    // Add our request to the stack and route context.
+    $request->attributes->set(\Symfony\Cmf\Component\Routing\RouteObjectInterface::ROUTE_OBJECT, new \Symfony\Component\Routing\Route('<none>'));
+    $request->attributes->set(\Symfony\Cmf\Component\Routing\RouteObjectInterface::ROUTE_NAME, '<none>');
+    $container->get('request_stack')->push($request);
+    $container->get('router.request_context')->fromRequest($request);
 
     // Initialize Civicrm
     \Drupal::service('civicrm')->initialize();
@@ -440,7 +430,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
     CRM_Utils_Hook::config($config);
 
     if ($loadUser) {
-      if (!empty($params['uid']) && $username = \Drupal\user\Entity\User::load($params['uid'])->getUsername()) {
+      if (!empty($params['uid']) && $username = \Drupal\user\Entity\User::load($params['uid'])->getAccountName()) {
         $this->loadUser($username);
       }
       elseif (!empty($params['name']) && !empty($params['pass']) && \Drupal::service('user.auth')->authenticate($params['name'], $params['pass'])) {
@@ -557,13 +547,13 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    * @inheritDoc
    */
   public function getModules() {
-    $modules = array();
+    $modules = [];
 
-    $module_data = system_rebuild_module_data();
+    $module_data = \Drupal::service('extension.list.module')->reset()->getList();
     foreach ($module_data as $module_name => $extension) {
       if (!isset($extension->info['hidden']) && $extension->origin != 'core') {
         $extension->schema_version = drupal_get_installed_schema_version($module_name);
-        $modules[] = new CRM_Core_Module('drupal.' . $module_name, ($extension->status == 1 ? TRUE : FALSE));
+        $modules[] = new CRM_Core_Module('drupal.' . $module_name, ($extension->status == 1));
       }
     }
     return $modules;
@@ -602,7 +592,7 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
       set_time_limit(300);
     }
 
-    $users = array();
+    $users = [];
     $users = \Drupal::entityTypeManager()->getStorage('user')->loadByProperties();
 
     $uf = $config->userFramework;
@@ -622,16 +612,23 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
       else {
         $contactMatching++;
       }
-      if (is_object($match)) {
-        $match->free();
-      }
     }
 
-    return array(
+    return [
       'contactCount' => $contactCount,
       'contactMatching' => $contactMatching,
       'contactCreated' => $contactCreated,
-    );
+    ];
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function setMessage($message) {
+    // CiviCRM sometimes includes markup in messages (ex: Event Cart)
+    // it needs to be rendered before being displayed.
+    $message = \Drupal\Core\Render\Markup::create($message);
+    \Drupal::messenger()->addMessage($message);
   }
 
   /**
@@ -657,11 +654,218 @@ class CRM_Utils_System_Drupal8 extends CRM_Utils_System_DrupalBase {
    */
   public function getCurrentLanguage() {
     // Drupal might not be bootstrapped if being called by the REST API.
-    if (!class_exists('Drupal')) {
+    if (!class_exists('Drupal') || !\Drupal::hasContainer()) {
       return NULL;
     }
 
     return \Drupal::languageManager()->getCurrentLanguage()->getId();
+  }
+
+  /**
+   * Helper function to extract path, query and route name from Civicrm URLs.
+   *
+   * For example, 'civicrm/contact/view?reset=1&cid=66' will be returned as:
+   *
+   * ```
+   * array(
+   *   'path' => 'civicrm/contact/view',
+   *   'route' => 'civicrm.civicrm_contact_view',
+   *   'query' => array('reset' => '1', 'cid' => '66'),
+   * );
+   * ```
+   *
+   * @param string $url
+   *   The url to parse.
+   *
+   * @return string[]
+   *   The parsed url parts, containing 'path', 'route' and 'query'.
+   */
+  public function parseUrl($url) {
+    $processed = ['path' => '', 'route_name' => '', 'query' => []];
+
+    // Remove leading '/' if it exists.
+    $url = ltrim($url, '/');
+
+    // Separate out the url into its path and query components.
+    $url = parse_url($url);
+    if (empty($url['path'])) {
+      return $processed;
+    }
+    $processed['path'] = $url['path'];
+
+    // Create a route name by replacing the forward slashes in the path with
+    // underscores, civicrm/contact/search => civicrm.civicrm_contact_search.
+    $processed['route_name'] = 'civicrm.' . implode('_', explode('/', $url['path']));
+
+    // Turn the query string (if it exists) into an associative array.
+    if (!empty($url['query'])) {
+      parse_str($url['query'], $processed['query']);
+    }
+
+    return $processed;
+  }
+
+  /**
+   * Append Drupal8 js to coreResourcesList.
+   *
+   * @param \Civi\Core\Event\GenericHookEvent $e
+   */
+  public function appendCoreResources(\Civi\Core\Event\GenericHookEvent $e) {
+    $e->list[] = 'js/crm.drupal8.js';
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function getTimeZoneString() {
+    $timezone = date_default_timezone_get();
+    return $timezone;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function setUFLocale($civicrm_language) {
+    $langcode = substr(str_replace('_', '', $civicrm_language), 0, 2);
+    $languageManager = \Drupal::languageManager();
+    $languages = $languageManager->getLanguages();
+
+    if (isset($languages[$langcode])) {
+      $languageManager->setConfigOverrideLanguage($languages[$langcode]);
+
+      // Config must be re-initialized to reset the base URL
+      // otherwise links will have the wrong language prefix/domain.
+      $config = CRM_Core_Config::singleton();
+      $config->free();
+
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function languageNegotiationURL($url, $addLanguagePart = TRUE, $removeLanguagePart = FALSE) {
+    if (empty($url)) {
+      return $url;
+    }
+
+    // Drupal might not be bootstrapped if being called by the REST API.
+    if (!class_exists('Drupal') || !\Drupal::hasContainer()) {
+      return $url;
+    }
+
+    $language = $this->getCurrentLanguage();
+    if (\Drupal::service('module_handler')->moduleExists('language')) {
+      $config = \Drupal::config('language.negotiation')->get('url');
+
+      //does user configuration allow language
+      //support from the URL (Path prefix or domain)
+      $enabledLanguageMethods = \Drupal::config('language.types')->get('negotiation.language_interface.enabled') ?: [];
+      if (array_key_exists(\Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl::METHOD_ID, $enabledLanguageMethods)) {
+        $urlType = $config['source'];
+
+        //url prefix
+        if ($urlType == \Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl::CONFIG_PATH_PREFIX) {
+          if (!empty($language)) {
+            if ($addLanguagePart && !empty($config['prefixes'][$language])) {
+              $url .= $config['prefixes'][$language] . '/';
+            }
+            if ($removeLanguagePart && !empty($config['prefixes'][$language])) {
+              $url = str_replace("/" . $config['prefixes'][$language] . "/", '/', $url);
+            }
+          }
+        }
+        //domain
+        if ($urlType == \Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl::CONFIG_DOMAIN) {
+          if (isset($language->domain) && $language->domain) {
+            if ($addLanguagePart) {
+              $url = (CRM_Utils_System::isSSL() ? 'https' : 'http') . '://' . $config['domains'][$language] . base_path();
+            }
+            if ($removeLanguagePart && defined('CIVICRM_UF_BASEURL')) {
+              $url = str_replace('\\', '/', $url);
+              $parseUrl = parse_url($url);
+
+              //kinda hackish but not sure how to do it right
+              //hope http_build_url() will help at some point.
+              if (is_array($parseUrl) && !empty($parseUrl)) {
+                $urlParts = explode('/', $url);
+                $hostKey = array_search($parseUrl['host'], $urlParts);
+                $ufUrlParts = parse_url(CIVICRM_UF_BASEURL);
+                $urlParts[$hostKey] = $ufUrlParts['host'];
+                $url = implode('/', $urlParts);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return $url;
+  }
+
+  /**
+   * Get role names
+   *
+   * @return array|null
+   */
+  public function getRoleNames() {
+    return user_role_names();
+  }
+
+  /**
+   * Determine if the Views module exists.
+   *
+   * @return bool
+   */
+  public function viewsExists() {
+    if (\Drupal::moduleHandler()->moduleExists('views')) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /**
+   * Return the CMS-specific url for its permissions page
+   * @return array
+   */
+  public function getCMSPermissionsUrlParams() {
+    return ['ufAccessURL' => \Drupal\Core\Url::fromRoute('user.admin_permissions')->toString()];
+  }
+
+  /**
+   * Start a new session.
+   */
+  public function sessionStart() {
+    if (\Drupal::hasContainer()) {
+      $session = \Drupal::service('session');
+      if (!$session->isStarted()) {
+        $session->start();
+      }
+    }
+  }
+
+  /**
+   * Load the user object.
+   *
+   * @param int $userID
+   *
+   * @return object
+   */
+  public function getUserObject($userID) {
+    return \Drupal::entityTypeManager()->getStorage('user')->load($userID);
+  }
+
+  /**
+   * Helper function to rebuild the Drupal 8 or 9 dynamic routing cache.
+   * We need to do this after enabling extensions that add routes and it's worth doing when we reset Civi paths.
+   */
+  public function invalidateRouteCache() {
+    if (class_exists('\Drupal') && \Drupal::hasContainer()) {
+      \Drupal::service('router.builder')->rebuild();
+    }
   }
 
 }

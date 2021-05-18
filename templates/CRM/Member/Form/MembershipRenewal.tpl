@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {* this template is used for renewing memberships for a contact  *}
@@ -31,24 +15,29 @@
   {/if}
   {if !$email}
     <div class="messages status no-popup">
-      <div class="icon inform-icon"></div>
+      {icon icon="fa-info-circle"}{/icon}
       <p>{ts}You will not be able to send an automatic email receipt for this Renew Membership because there is no email address recorded for this contact. If you want a receipt to be sent when this Membership is recorded, click Cancel and then click Edit from the Summary tab to add an email address before Renewal the Membership.{/ts}</p>
     </div>
   {/if}
   {if $membershipMode}
     <div class="help">
-      {ts 1=$displayName 2=$registerMode}Use this form to Renew Membership Record on behalf of %1.
-        <strong>A %2 transaction will be submitted</strong>
-        using the selected payment processor.{/ts}
+      {ts 1=$displayName}Use this form to Renew Membership Record on behalf of %1.{/ts}
+      {if $registerMode == 'LIVE'}
+        {ts}<strong>A LIVE transaction will be submitted</strong> using the selected payment processor.{/ts}
+      {else}
+        {ts}<strong>A TEST transaction will be submitted</strong> using the selected payment processor.{/ts}
+      {/if}
     </div>
   {/if}
   {if $action eq 32768}
     {if $cancelAutoRenew}
       <div class="messages status no-popup">
-        <div class="icon inform-icon"></div>
-        <p>{ts 1=$cancelAutoRenew}This membership is set to renew automatically {if $renewalDate}on {$renewalDate|crmDate}{/if}. You will need to cancel the auto-renew option if you want to modify the Membership Type, End Date or Membership Status.
-            <a href="%1">Click here</a>
-            if you want to cancel the automatic renewal option.{/ts}</p>
+        {icon icon="fa-info-circle"}{/icon}
+        {if $renewalDate}
+          <p>{ts 1=$cancelAutoRenew 2=$renewalDate|crmDate}This membership is set to renew automatically on %2. You will need to cancel the auto-renew option if you want to modify the Membership Type, End Date or Membership Status. <a href="%1">Click here</a> if you want to cancel the automatic renewal option.{/ts}</p>
+        {else}
+          <p>{ts 1=$cancelAutoRenew}This membership is set to renew automatically. You will need to cancel the auto-renew option if you want to modify the Membership Type, End Date or Membership Status. <a href="%1">Click here</a> if you want to cancel the automatic renewal option.{/ts}</p>
+        {/if}
       </div>
     {/if}
   {/if}
@@ -58,9 +47,9 @@
     </div>
     <div>{include file="CRM/common/formButtons.tpl" location="top"}</div>
     <table class="form-layout">
-      <tr class="crm-member-membershiprenew-form-block-payment_processor_id">
-        <td class="label">{$form.payment_processor_id.label}</td>
-        <td class="html-adjust">{$form.payment_processor_id.html}</td>
+      <tr class="crm-member-membershiprenew-form-block-contact-id">
+        <td class="label">{$form.contact_id.label}</td>
+        <td>{$form.contact_id.html}</td>
       </tr>
       <tr class="crm-member-membershiprenew-form-block-org_name">
         <td class="label">{ts}Membership Organization and Type{/ts}</td>
@@ -84,11 +73,11 @@
       </tr>
       <tr class="crm-member-membershiprenew-form-block-end_date">
         <td class="label">{ts}Membership End Date{/ts}</td>
-        <td class="html-adjust">&nbsp;{$endDate}</td>
+        <td class="html-adjust">&nbsp;{$endDate|crmDate}</td>
       </tr>
       <tr class="crm-member-membershiprenew-form-block-renewal_date">
         <td class="label">{$form.renewal_date.label}</td>
-        <td>{include file="CRM/common/jcalendar.tpl" elementName=renewal_date}</td>
+        <td>{$form.renewal_date.html}</td>
       </tr>
       <tr id="defaultNumTerms" class="crm-member-membershiprenew-form-block-default-num_terms">
         <td colspan="2" class="description">
@@ -140,9 +129,7 @@
       </table>
     {/if}
 
-    <div id="customData"></div>
-    {*include custom data js file*}
-    {include file="CRM/common/customData.tpl"}
+    {include file="CRM/common/customDataBlock.tpl"}
 
     <div>{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
 
@@ -193,12 +180,6 @@
     CRM.$(function($) {
       $('#membershipOrgType').hide();
       $('#changeNumTerms').hide();
-      {/literal}
-      CRM.buildCustomData('{$customDataType}');
-      {if $customDataSubType}
-      CRM.buildCustomData('{$customDataType}', {$customDataSubType});
-      {/if}
-      {literal}
     });
 
     function checkPayment() {

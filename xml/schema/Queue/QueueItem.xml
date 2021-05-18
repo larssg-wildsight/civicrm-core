@@ -15,6 +15,9 @@
     <title>Queue ID</title>
     <type>int unsigned</type>
     <required>true</required>
+    <html>
+      <type>Number</type>
+    </html>
   </field>
   <primaryKey>
     <name>id</name>
@@ -48,6 +51,7 @@
     <required>true</required>
     <html>
       <type>Select Date</type>
+      <formatType>activityDateTime</formatType>
     </html>
   </field>
   <field>
@@ -57,13 +61,14 @@
     <comment>date on which this job becomes available; null if ASAP</comment>
     <html>
       <type>Select Date</type>
+      <formatType>activityDateTime</formatType>
     </html>
   </field>
 
   <field>
     <name>data</name>
     <title>Queue item data</title>
-    <type>text</type>
+    <type>longtext</type>
     <comment>Serialized queue data</comment>
     <serialize>PHP</serialize>
   </field>

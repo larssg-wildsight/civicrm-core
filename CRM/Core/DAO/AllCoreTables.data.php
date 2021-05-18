@@ -12,11 +12,6 @@ return [
     'class' => 'CRM_Core_DAO_Extension',
     'table' => 'civicrm_extension',
   ],
-  'CRM_Core_DAO_File' => [
-    'name' => 'File',
-    'class' => 'CRM_Core_DAO_File',
-    'table' => 'civicrm_file',
-  ],
   'CRM_Core_DAO_LocationType' => [
     'name' => 'LocationType',
     'class' => 'CRM_Core_DAO_LocationType',
@@ -62,11 +57,6 @@ return [
     'class' => 'CRM_Core_DAO_Component',
     'table' => 'civicrm_component',
   ],
-  'CRM_Core_DAO_Persistent' => [
-    'name' => 'Persistent',
-    'class' => 'CRM_Core_DAO_Persistent',
-    'table' => 'civicrm_persistent',
-  ],
   'CRM_Core_DAO_PrevNextCache' => [
     'name' => 'PrevNextCache',
     'class' => 'CRM_Core_DAO_PrevNextCache',
@@ -86,6 +76,11 @@ return [
     'name' => 'ACL',
     'class' => 'CRM_ACL_DAO_ACL',
     'table' => 'civicrm_acl',
+  ],
+  'CRM_ACL_DAO_ACLCache' => [
+    'name' => 'ACLCache',
+    'class' => 'CRM_ACL_DAO_ACLCache',
+    'table' => 'civicrm_acl_cache',
   ],
   'CRM_ACL_DAO_EntityRole' => [
     'name' => 'EntityRole',
@@ -127,9 +122,9 @@ return [
     'class' => 'CRM_Batch_DAO_EntityBatch',
     'table' => 'civicrm_entity_batch',
   ],
-  'CRM_Mailing_DAO_Component' => [
-    'name' => 'Component',
-    'class' => 'CRM_Mailing_DAO_Component',
+  'CRM_Mailing_DAO_MailingComponent' => [
+    'name' => 'MailingComponent',
+    'class' => 'CRM_Mailing_DAO_MailingComponent',
     'table' => 'civicrm_mailing_component',
   ],
   'CRM_Mailing_DAO_MailingAB' => [
@@ -292,10 +287,10 @@ return [
     'class' => 'CRM_Core_DAO_Email',
     'table' => 'civicrm_email',
   ],
-  'CRM_Core_DAO_EntityFile' => [
-    'name' => 'EntityFile',
-    'class' => 'CRM_Core_DAO_EntityFile',
-    'table' => 'civicrm_entity_file',
+  'CRM_Core_DAO_File' => [
+    'name' => 'File',
+    'class' => 'CRM_Core_DAO_File',
+    'table' => 'civicrm_file',
   ],
   'CRM_Core_DAO_IM' => [
     'name' => 'IM',
@@ -401,11 +396,6 @@ return [
     'name' => 'StatusPreference',
     'class' => 'CRM_Core_DAO_StatusPreference',
     'table' => 'civicrm_status_pref',
-  ],
-  'CRM_ACL_DAO_Cache' => [
-    'name' => 'Cache',
-    'class' => 'CRM_ACL_DAO_Cache',
-    'table' => 'civicrm_acl_cache',
   ],
   'CRM_Contact_DAO_Group' => [
     'name' => 'Group',
@@ -532,6 +522,11 @@ return [
     'class' => 'CRM_Core_DAO_Discount',
     'table' => 'civicrm_discount',
   ],
+  'CRM_Core_DAO_EntityFile' => [
+    'name' => 'EntityFile',
+    'class' => 'CRM_Core_DAO_EntityFile',
+    'table' => 'civicrm_entity_file',
+  ],
   'CRM_Core_DAO_EntityTag' => [
     'name' => 'EntityTag',
     'class' => 'CRM_Core_DAO_EntityTag',
@@ -571,6 +566,11 @@ return [
     'name' => 'Relationship',
     'class' => 'CRM_Contact_DAO_Relationship',
     'table' => 'civicrm_relationship',
+  ],
+  'CRM_Contact_DAO_RelationshipCache' => [
+    'name' => 'RelationshipCache',
+    'class' => 'CRM_Contact_DAO_RelationshipCache',
+    'table' => 'civicrm_relationship_cache',
   ],
   'CRM_Mailing_DAO_Mailing' => [
     'name' => 'Mailing',

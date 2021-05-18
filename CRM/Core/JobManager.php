@@ -1,27 +1,11 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
@@ -30,32 +14,32 @@
  * by every scheduled job (cron task) in CiviCRM.
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Core_JobManager {
 
   /**
-   * @var array ($id => CRM_Core_ScheduledJob)
+   * Jobs.
+   *
+   * Format is ($id => CRM_Core_ScheduledJob).
+   *
+   * @var array
    */
-  var $jobs = NULL;
+  public $jobs = NULL;
 
   /**
    * @var CRM_Core_ScheduledJob
    */
-  var $currentJob = NULL;
+  public $currentJob = NULL;
 
-  var $singleRunParams = array();
+  public $singleRunParams = [];
 
-  var $_source = NULL;
-
+  public $_source = NULL;
 
   /**
    * Class constructor.
    */
   public function __construct() {
-    $config = CRM_Core_Config::singleton();
-    $config->fatalErrorHandler = 'CRM_Core_JobManager_scheduledJobFatalErrorHandler';
-
     $this->jobs = $this->_getJobs();
   }
 
@@ -83,10 +67,11 @@ class CRM_Core_JobManager {
     $this->logEntry('Finishing scheduled jobs execution.');
 
     // Set last cron date for the status check
-    $statusPref = array(
+    $statusPref = [
       'name' => 'checkLastCron',
       'check_info' => gmdate('U'),
-    );
+      'prefs' => '',
+    ];
     CRM_Core_BAO_StatusPreference::create($statusPref);
   }
 
@@ -141,19 +126,22 @@ class CRM_Core_JobManager {
       $params = $job->apiParams;
     }
 
+    CRM_Utils_Hook::preJob($job, $params);
     try {
       $result = civicrm_api($job->api_entity, $job->api_action, $params);
     }
     catch (Exception$e) {
       $this->logEntry('Error while executing ' . $job->name . ': ' . $e->getMessage());
+      $result = $e;
     }
+    CRM_Utils_Hook::postJob($job, $params, $result);
     $this->logEntry('Finished execution of ' . $job->name . ' with result: ' . $this->_apiResultToMessage($result));
     $this->currentJob = FALSE;
 
     //Disable outBound option after executing the job.
     $environment = CRM_Core_Config::environment(NULL, TRUE);
     if ($environment != 'Production' && !empty($job->apiParams['runInNonProductionEnvironment'])) {
-      Civi::settings()->set('mailing_backend', array('outBound_option' => CRM_Mailing_Config::OUTBOUND_OPTION_DISABLED));
+      Civi::settings()->set('mailing_backend', ['outBound_option' => CRM_Mailing_Config::OUTBOUND_OPTION_DISABLED]);
     }
   }
 
@@ -165,13 +153,13 @@ class CRM_Core_JobManager {
    *   ($id => CRM_Core_ScheduledJob)
    */
   private function _getJobs() {
-    $jobs = array();
+    $jobs = [];
     $dao = new CRM_Core_DAO_Job();
     $dao->orderBy('name');
     $dao->domain_id = CRM_Core_Config::domainID();
     $dao->find();
     while ($dao->fetch()) {
-      $temp = array();
+      $temp = [];
       CRM_Core_DAO::storeValues($dao, $temp);
       $jobs[$dao->id] = new CRM_Core_ScheduledJob($temp);
     }
@@ -191,7 +179,7 @@ class CRM_Core_JobManager {
    */
   private function _getJob($id = NULL, $entity = NULL, $action = NULL) {
     if (is_null($id) && is_null($action)) {
-      CRM_Core_Error::fatal('You need to provide either id or name to use this method');
+      throw new CRM_Core_Exception('You need to provide either id or name to use this method');
     }
     $dao = new CRM_Core_DAO_Job();
     $dao->id = $id;
@@ -226,10 +214,21 @@ class CRM_Core_JobManager {
     $dao = new CRM_Core_DAO_JobLog();
 
     $dao->domain_id = $domainID;
-    $dao->description = substr($message, 0, 235);
-    if (strlen($message) > 235) {
-      $dao->description .= " (...)";
+
+    /*
+     * The description is a summary of the message.
+     * HTML tags are stripped from the message.
+     * The description is limited to 240 characters
+     * and has an ellipsis added if it is truncated.
+     */
+    $maxDescription = 240;
+    $ellipsis = " (...)";
+    $description = strip_tags($message);
+    if (strlen($description) > $maxDescription) {
+      $description = substr($description, 0, $maxDescription - strlen($ellipsis)) . $ellipsis;
     }
+    $dao->description = $description;
+
     if ($this->currentJob) {
       $dao->job_id = $this->currentJob->id;
       $dao->name = $this->currentJob->name;
@@ -273,13 +272,4 @@ class CRM_Core_JobManager {
     return $status . $message;
   }
 
-}
-
-/**
- * @param $message
- *
- * @throws Exception
- */
-function CRM_Core_JobManager_scheduledJobFatalErrorHandler($message) {
-  throw new Exception("{$message['message']}: {$message['code']}");
 }

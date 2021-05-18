@@ -7,9 +7,13 @@
   <add>2.0</add>
   <field>
     <name>id</name>
+    <title>Component ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <comment>Component ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>2.0</add>
   </field>
   <primaryKey>
@@ -30,9 +34,7 @@
     <title>Namespace reserved for component.</title>
     <type>varchar</type>
     <length>128</length>
-    <comment>Path to components main directory in a form of a class
-      namespace.
-    </comment>
+    <comment>Path to components main directory in a form of a class namespace.</comment>
     <add>2.0</add>
   </field>
 </table>

@@ -1,34 +1,18 @@
 <?php
 /*
-  +--------------------------------------------------------------------+
-  | CiviCRM version 5                                                  |
-  +--------------------------------------------------------------------+
-  | Copyright CiviCRM LLC (c) 2004-2018                                |
-  +--------------------------------------------------------------------+
-  | This file is a part of CiviCRM.                                    |
-  |                                                                    |
-  | CiviCRM is free software; you can copy, modify, and distribute it  |
-  | under the terms of the GNU Affero General Public License           |
-  | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
-  |                                                                    |
-  | CiviCRM is distributed in the hope that it will be useful, but     |
-  | WITHOUT ANY WARRANTY; without even the implied warranty of         |
-  | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
-  | See the GNU Affero General Public License for more details.        |
-  |                                                                    |
-  | You should have received a copy of the GNU Affero General Public   |
-  | License and the CiviCRM Licensing Exception along                  |
-  | with this program; if not, contact CiviCRM LLC                     |
-  | at info[AT]civicrm[DOT]org. If you have questions about the        |
-  | GNU Affero General Public License or the licensing of CiviCRM,     |
-  | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
-  +--------------------------------------------------------------------+
+ +--------------------------------------------------------------------+
+ | Copyright CiviCRM LLC. All rights reserved.                        |
+ |                                                                    |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
+ +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -42,7 +26,7 @@ class CRM_Price_BAO_PriceSet extends CRM_Price_DAO_PriceSet {
    *
    * @var array
    */
-  static $_defaultPriceSet = NULL;
+  public static $_defaultPriceSet = NULL;
 
   /**
    * Class constructor.
@@ -60,6 +44,9 @@ class CRM_Price_BAO_PriceSet extends CRM_Price_DAO_PriceSet {
    * @return CRM_Price_DAO_PriceSet
    */
   public static function create(&$params) {
+    $hook = empty($params['id']) ? 'create' : 'edit';
+    CRM_Utils_Hook::pre($hook, 'PriceSet', CRM_Utils_Array::value('id', $params), $params);
+
     if (empty($params['id']) && empty($params['name'])) {
       $params['name'] = CRM_Utils_String::munge($params['title'], '_', 242);
     }
@@ -74,14 +61,18 @@ class CRM_Price_BAO_PriceSet extends CRM_Price_DAO_PriceSet {
       $params['extends'] = CRM_Utils_Array::implodePadded($params['extends']);
     }
     else {
-      $priceSetID = CRM_Utils_Array::value('id', $params);
+      $priceSetID = $params['id'] ?? NULL;
     }
     $priceSetBAO = new CRM_Price_BAO_PriceSet();
     $priceSetBAO->copyValues($params);
     if (self::eventPriceSetDomainID()) {
       $priceSetBAO->domain_id = CRM_Core_Config::domainID();
     }
-    return $priceSetBAO->save();
+    $priceSetBAO->save();
+
+    CRM_Utils_Hook::post($hook, 'PriceSet', $priceSetBAO->id, $priceSetBAO);
+    unset(\Civi::$statics['CRM_Core_PseudoConstant']);
+    return $priceSetBAO;
   }
 
   /**
@@ -105,10 +96,8 @@ class CRM_Price_BAO_PriceSet extends CRM_Price_DAO_PriceSet {
    *   Id of the database record.
    * @param $isActive
    *
-   * @internal param bool $is_active value we want to set the is_active field
-   *
-   * @return Object
-   *   DAO object on success, null otherwise
+   * @return bool
+   *   true if we found and updated the object, else false
    */
   public static function setIsActive($id, $isActive) {
     return CRM_Core_DAO::setFieldValue('CRM_Price_DAO_PriceSet', $id, 'is_active', $isActive);
@@ -125,26 +114,22 @@ class CRM_Price_BAO_PriceSet extends CRM_Price_DAO_PriceSet {
    *
    */
   public static function getDefaultPriceSet($entity = 'contribution') {
-    if (!empty(self::$_defaultPriceSet[$entity])) {
-      return self::$_defaultPriceSet[$entity];
+    if (isset(\Civi::$statics[__CLASS__][$entity])) {
+      return \Civi::$statics[__CLASS__][$entity];
     }
-    $entityName = 'default_contribution_amount';
-    if ($entity == 'membership') {
-      $entityName = 'default_membership_type_amount';
-    }
+    $priceSetName = ($entity === 'membership') ? 'default_membership_type_amount' : 'default_contribution_amount';
 
     $sql = "
 SELECT      ps.id AS setID, pfv.price_field_id AS priceFieldID, pfv.id AS priceFieldValueID, pfv.name, pfv.label, pfv.membership_type_id, pfv.amount, pfv.financial_type_id
 FROM        civicrm_price_set ps
 LEFT JOIN   civicrm_price_field pf ON pf.`price_set_id` = ps.id
 LEFT JOIN   civicrm_price_field_value pfv ON pfv.price_field_id = pf.id
-WHERE       ps.name = '{$entityName}'
+WHERE       ps.name = '{$priceSetName}'
 ";
 
     $dao = CRM_Core_DAO::executeQuery($sql);
-    self::$_defaultPriceSet[$entity] = array();
     while ($dao->fetch()) {
-      self::$_defaultPriceSet[$entity][$dao->priceFieldValueID] = array(
+      \Civi::$statics[__CLASS__][$entity][$dao->priceFieldValueID] = [
         'setID' => $dao->setID,
         'priceFieldID' => $dao->priceFieldID,
         'name' => $dao->name,
@@ -153,10 +138,10 @@ WHERE       ps.name = '{$entityName}'
         'membership_type_id' => $dao->membership_type_id,
         'amount' => $dao->amount,
         'financial_type_id' => $dao->financial_type_id,
-      );
+      ];
     }
 
-    return self::$_defaultPriceSet[$entity];
+    return \Civi::$statics[__CLASS__][$entity];
   }
 
   /**
@@ -183,7 +168,7 @@ WHERE       ps.name = '{$entityName}'
    * @return array
    */
   public static function getUsedBy($id, $simpleReturn = FALSE) {
-    $usedBy = array();
+    $usedBy = [];
     $forms = self::getFormsUsingPriceSet($id);
     $tables = array_keys($forms);
     // @todo - this is really clumsy overloading the signature like this. Instead
@@ -199,7 +184,7 @@ SELECT    cli.entity_table, cli.entity_id
 FROM      civicrm_line_item cli
 LEFT JOIN civicrm_price_field cpf ON cli.price_field_id = cpf.id
 WHERE     cpf.price_set_id = %1";
-      $params = array(1 => array($id, 'Integer'));
+      $params = [1 => [$id, 'Integer']];
       $crmFormDAO = CRM_Core_DAO::executeQuery($queryString, $params);
       while ($crmFormDAO->fetch()) {
         $forms[$crmFormDAO->entity_table][] = $crmFormDAO->entity_id;
@@ -315,13 +300,13 @@ WHERE     cpf.price_set_id = %1";
     if ($isQuickConfig) {
       $sql .= ' AND ps.is_quick_config = 0 ';
     }
-    $params = array(
-      1 => array($entityTable, 'String'),
-      2 => array($entityId, 'Integer'),
-    );
+    $params = [
+      1 => [$entityTable, 'String'],
+      2 => [$entityId, 'Integer'],
+    ];
     if ($usedFor) {
       $sql .= " AND ps.extends LIKE '%%3%' ";
-      $params[3] = array($usedFor, 'Integer');
+      $params[3] = [$usedFor, 'Integer'];
     }
 
     $dao = CRM_Core_DAO::executeQuery($sql, $params);
@@ -338,7 +323,7 @@ WHERE     cpf.price_set_id = %1";
    *                      array may contain either option id or
    *                      price field id
    *
-   * @return int|NULL
+   * @return int|null
    *   price set id on success, null  otherwise
    */
   public static function getSetId(&$params) {
@@ -352,7 +337,7 @@ WHERE     cpf.price_set_id = %1";
       }
     }
     else {
-      $fid = CRM_Utils_Array::value('fid', $params);
+      $fid = $params['fid'] ?? NULL;
     }
 
     if (isset($fid)) {
@@ -392,7 +377,7 @@ WHERE     cpf.price_set_id = %1";
       $query .= ' AND s.domain_id = ' . CRM_Core_Config::domainID();
     }
 
-    $priceSets = array();
+    $priceSets = [];
 
     if ($extendComponentName) {
       $componentId = CRM_Core_Component::getComponentID($extendComponentName);
@@ -428,17 +413,17 @@ WHERE     cpf.price_set_id = %1";
    *   Price Set ID.
    * @param bool $required
    *   Appears to have no effect based on reading the code.
-   * @param bool $validOnly
+   * @param bool $doNotIncludeExpiredFields
    *   Should only fields where today's date falls within the valid range be returned?
    *
    * @return array
    *   Array consisting of field details
    */
-  public static function getSetDetail($setID, $required = TRUE, $validOnly = FALSE) {
+  public static function getSetDetail($setID, $required = TRUE, $doNotIncludeExpiredFields = FALSE) {
     // create a new tree
-    $setTree = array();
+    $setTree = [];
 
-    $priceFields = array(
+    $priceFields = [
       'id',
       'name',
       'label',
@@ -455,7 +440,7 @@ WHERE     cpf.price_set_id = %1";
       'javascript',
       'visibility_id',
       'is_required',
-    );
+    ];
     if ($required == TRUE) {
       $priceFields[] = 'is_required';
     }
@@ -464,9 +449,9 @@ WHERE     cpf.price_set_id = %1";
     $select = 'SELECT ' . implode(',', $priceFields);
     $from = ' FROM civicrm_price_field';
 
-    $params = array(
-      1 => array($setID, 'Integer'),
-    );
+    $params = [
+      1 => [$setID, 'Integer'],
+    ];
     $currentTime = date('YmdHis');
     $where = "
 WHERE price_set_id = %1
@@ -474,7 +459,7 @@ AND is_active = 1
 AND ( active_on IS NULL OR active_on <= {$currentTime} )
 ";
     $dateSelect = '';
-    if ($validOnly) {
+    if ($doNotIncludeExpiredFields) {
       $dateSelect = "
 AND ( expire_on IS NULL OR expire_on >= {$currentTime} )
 ";
@@ -495,7 +480,7 @@ AND ( expire_on IS NULL OR expire_on >= {$currentTime} )
     while ($dao->fetch()) {
       $fieldID = $dao->id;
 
-      $setTree[$setID]['fields'][$fieldID] = array();
+      $setTree[$setID]['fields'][$fieldID] = [];
       $setTree[$setID]['fields'][$fieldID]['id'] = $fieldID;
 
       foreach ($priceFields as $field) {
@@ -561,26 +546,19 @@ WHERE  id = %1";
     return (int) implode('_', array_keys($priceSet['fields'][$priceFieldID]['options']));
   }
 
-
   /**
    * Initiate price set such that various non-BAO things are set on the form.
    *
    * This function is not really a BAO function so the location is misleading.
    *
    * @param CRM_Core_Form $form
-   * @param int $id
    *   Form entity id.
    * @param string $entityTable
-   * @param bool $validOnly
+   * @param bool $doNotIncludeExpiredFields
    * @param int $priceSetId
    *   Price Set ID
-   *
-   * @return bool|false|int|null
    */
-  public static function initSet(&$form, $id, $entityTable = 'civicrm_event', $validOnly = FALSE, $priceSetId = NULL) {
-    if (!$priceSetId) {
-      $priceSetId = self::getFor($entityTable, $id);
-    }
+  public static function initSet(&$form, $entityTable = 'civicrm_event', $doNotIncludeExpiredFields = FALSE, $priceSetId = NULL) {
 
     //check if price set is is_config
     if (is_numeric($priceSetId)) {
@@ -596,7 +574,7 @@ WHERE  id = %1";
         switch ($entityTable) {
           case 'civicrm_event':
             $entity = 'participant';
-            if (CRM_Utils_System::getClassName($form) == 'CRM_Event_Form_Participant') {
+            if (in_array(CRM_Utils_System::getClassName($form), ['CRM_Event_Form_Participant', 'CRM_Event_Form_Task_Register'])) {
               $entityId = $form->_id;
             }
             else {
@@ -621,16 +599,16 @@ WHERE  id = %1";
       }
 
       $form->_priceSetId = $priceSetId;
-      $priceSet = self::getSetDetail($priceSetId, $required, $validOnly);
-      $form->_priceSet = CRM_Utils_Array::value($priceSetId, $priceSet);
-      $form->_values['fee'] = CRM_Utils_Array::value('fields', $form->_priceSet);
+      $priceSet = self::getSetDetail($priceSetId, $required, $doNotIncludeExpiredFields);
+      $form->_priceSet = $priceSet[$priceSetId] ?? NULL;
+      $form->_values['fee'] = $form->_priceSet['fields'] ?? NULL;
 
       //get the price set fields participant count.
       if ($entityTable == 'civicrm_event') {
         //get option count info.
         $form->_priceSet['optionsCountTotal'] = self::getPricesetCount($priceSetId);
         if ($form->_priceSet['optionsCountTotal']) {
-          $optionsCountDetails = array();
+          $optionsCountDetails = [];
           if (!empty($form->_priceSet['fields'])) {
             foreach ($form->_priceSet['fields'] as $field) {
               foreach ($field['options'] as $option) {
@@ -644,7 +622,7 @@ WHERE  id = %1";
 
         //get option max value info.
         $optionsMaxValueTotal = 0;
-        $optionsMaxValueDetails = array();
+        $optionsMaxValueDetails = [];
 
         if (!empty($form->_priceSet['fields'])) {
           foreach ($form->_priceSet['fields'] as $field) {
@@ -663,10 +641,7 @@ WHERE  id = %1";
       }
       $form->set('priceSetId', $form->_priceSetId);
       $form->set('priceSet', $form->_priceSet);
-
-      return $priceSetId;
     }
-    return FALSE;
   }
 
   /**
@@ -682,31 +657,14 @@ WHERE  id = %1";
    *   Params reflecting form input e.g with fields 'price_5' => 7, 'price_8' => array(7, 8)
    * @param $lineItem
    *   Line item array to be altered.
-   * @param string $component
-   *   This parameter appears to only be relevant to determining whether memberships should be auto-renewed.
-   *   (and is effectively a boolean for 'is_membership' which could be calculated from the line items.)
    * @param int $priceSetID
+   *
+   * @todo $priceSetID is a pseudoparam for permit override - we should stop passing it where we
+   * don't specifically need it & find a better way where we do.
    */
-  public static function processAmount($fields, &$params, &$lineItem, $component = '', $priceSetID = NULL) {
+  public static function processAmount($fields, &$params, &$lineItem, $priceSetID = NULL) {
     // using price set
     $totalPrice = $totalTax = 0;
-    // CRM-18701 Sometimes the amount in the price set is overridden by the amount on the form.
-    // This is notably the case with memberships and we need to put this amount
-    // on the line item rather than the calculated amount.
-    // This seems to only affect radio link items as that is the use case for the 'quick config'
-    // set up (which allows a free form field).
-    $amount_override = NULL;
-
-    if ($component) {
-      $autoRenew = array();
-      $autoRenew[0] = $autoRenew[1] = $autoRenew[2] = 0;
-    }
-    if ($priceSetID) {
-      $priceFields = self::filterPriceFieldsFromParams($priceSetID, $params);
-      if (count($priceFields) == 1) {
-        $amount_override = CRM_Utils_Array::value('partial_payment_total', $params, CRM_Utils_Array::value('total_amount', $params));
-      }
-    }
     foreach ($fields as $id => $field) {
       if (empty($params["price_{$id}"]) ||
         (empty($params["price_{$id}"]) && $params["price_{$id}"] == NULL)
@@ -715,96 +673,15 @@ WHERE  id = %1";
         continue;
       }
 
-      switch ($field['html_type']) {
-        case 'Text':
-          $firstOption = reset($field['options']);
-          $params["price_{$id}"] = array($firstOption['id'] => $params["price_{$id}"]);
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
-          $optionValueId = key($field['options']);
-
-          if (CRM_Utils_Array::value('name', $field['options'][$optionValueId]) == 'contribution_amount') {
-            $taxRates = CRM_Core_PseudoConstant::getTaxRates();
-            if (array_key_exists($params['financial_type_id'], $taxRates)) {
-              $field['options'][key($field['options'])]['tax_rate'] = $taxRates[$params['financial_type_id']];
-              $taxAmount = CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount($field['options'][$optionValueId]['amount'], $field['options'][$optionValueId]['tax_rate']);
-              $field['options'][$optionValueId]['tax_amount'] = round($taxAmount['tax_amount'], 2);
-            }
-          }
-          if (CRM_Utils_Array::value('tax_rate', $field['options'][$optionValueId])) {
-            $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
-          }
-          $totalPrice += $lineItem[$firstOption['id']]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[key($field['options'])]);
-          break;
-
-        case 'Radio':
-          //special case if user select -none-
-          if ($params["price_{$id}"] <= 0) {
-            continue;
-          }
-          $params["price_{$id}"] = array($params["price_{$id}"] => 1);
-          $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
-
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, $amount_override);
-          if (CRM_Utils_Array::value('tax_rate', $field['options'][$optionValueId])) {
-            $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
-            if ($amount_override) {
-              $lineItem[$optionValueId]['line_total'] = $lineItem[$optionValueId]['unit_price'] = CRM_Utils_Rule::cleanMoney($lineItem[$optionValueId]['line_total'] - $lineItem[$optionValueId]['tax_amount']);
-            }
-          }
-          $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
-          if (
-            $component &&
-            // auto_renew exists and is empty in some workflows, which php treat as a 0
-            // and hence we explicitly check to see if auto_renew is numeric
-            isset($lineItem[$optionValueId]['auto_renew']) &&
-            is_numeric($lineItem[$optionValueId]['auto_renew'])
-          ) {
-            $autoRenew[$lineItem[$optionValueId]['auto_renew']] += $lineItem[$optionValueId]['line_total'];
-          }
-          break;
-
-        case 'Select':
-          $params["price_{$id}"] = array($params["price_{$id}"] => 1);
-          $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
-
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
-          if (CRM_Utils_Array::value('tax_rate', $field['options'][$optionValueId])) {
-            $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
-          }
-          $totalPrice += $lineItem[$optionValueId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionValueId]);
-          if (
-            $component &&
-            isset($lineItem[$optionValueId]['auto_renew']) &&
-            is_numeric($lineItem[$optionValueId]['auto_renew'])
-          ) {
-            $autoRenew[$lineItem[$optionValueId]['auto_renew']] += $lineItem[$optionValueId]['line_total'];
-          }
-          break;
-
-        case 'CheckBox':
-
-          CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
-          foreach ($params["price_{$id}"] as $optionId => $option) {
-            if (CRM_Utils_Array::value('tax_rate', $field['options'][$optionId])) {
-              $lineItem = self::setLineItem($field, $lineItem, $optionId, $totalTax);
-            }
-            $totalPrice += $lineItem[$optionId]['line_total'] + CRM_Utils_Array::value('tax_amount', $lineItem[$optionId]);
-            if (
-              $component &&
-              isset($lineItem[$optionId]['auto_renew']) &&
-              is_numeric($lineItem[$optionId]['auto_renew'])
-            ) {
-              $autoRenew[$lineItem[$optionId]['auto_renew']] += $lineItem[$optionId]['line_total'];
-            }
-          }
-          break;
-      }
+      [$params, $lineItem] = self::getLine($params, $lineItem, $priceSetID, $field, $id);
     }
 
-    $amount_level = array();
+    $amount_level = [];
     $totalParticipant = 0;
     if (is_array($lineItem)) {
       foreach ($lineItem as $values) {
+        $totalPrice += $values['line_total'] + $values['tax_amount'];
+        $totalTax += $values['tax_amount'];
         $totalParticipant += $values['participant_count'];
         // This is a bit nasty. The logic of 'quick config' was because price set configuration was
         // (and still is) too difficult to replace the 'quick config' price set configuration on the contribution
@@ -821,7 +698,7 @@ WHERE  id = %1";
         // will get us by.
         // Crucially a test has been added so a better solution can be implemented later with some comfort.
         // @todo - stop setting amount level in this function & call the getAmountLevel function to retrieve it.
-        if ($values['label'] != ts('Contribution Amount')) {
+        if ($values['label'] !== ts('Contribution Amount')) {
           $amount_level[] = $values['label'] . ' - ' . (float) $values['qty'];
         }
       }
@@ -841,16 +718,6 @@ WHERE  id = %1";
 
     $params['amount'] = $totalPrice;
     $params['tax_amount'] = $totalTax;
-    if ($component) {
-      foreach ($autoRenew as $dontCare => $eachAmount) {
-        if (!$eachAmount) {
-          unset($autoRenew[$dontCare]);
-        }
-      }
-      if (count($autoRenew) > 1) {
-        $params['autoRenew'] = $autoRenew;
-      }
-    }
   }
 
   /**
@@ -871,7 +738,7 @@ WHERE  id = %1";
     $priceFieldMetadata = self::getCachedPriceSetDetail($priceSetID);
     $displayParticipantCount = NULL;
 
-    $amount_level = array();
+    $amount_level = [];
     foreach ($priceFieldMetadata['fields'] as $field) {
       if (!empty($priceFieldSelection[$field['id']])) {
         $qtyString = '';
@@ -881,7 +748,7 @@ WHERE  id = %1";
         // We deliberately & specifically exclude contribution amount as it has a specific meaning.
         // ie. it represents the default price field for a contribution. Another approach would be not
         // to give it a label if we don't want it to show.
-        if ($field['label'] != ts('Contribution Amount')) {
+        if ($field['label'] !== ts('Contribution Amount')) {
           $amount_level[] = $field['label'] . $qtyString;
         }
       }
@@ -902,7 +769,7 @@ WHERE  id = %1";
    */
   public static function filterPriceFieldsFromParams($priceSetID, $params) {
     $priceSet = self::getCachedPriceSetDetail($priceSetID);
-    $return = array();
+    $return = [];
     foreach ($priceSet['fields'] as $field) {
       if (!empty($params['price_' . $field['id']])) {
         $return[$field['id']] = $params['price_' . $field['id']];
@@ -953,15 +820,15 @@ WHERE  id = %1";
 
     $validFieldsOnly = TRUE;
     $className = CRM_Utils_System::getClassName($form);
-    if (in_array($className, array(
+    if (in_array($className, [
       'CRM_Contribute_Form_Contribution',
       'CRM_Member_Form_Membership',
-    ))) {
+    ])) {
       $validFieldsOnly = FALSE;
     }
 
     $priceSet = self::getSetDetail($priceSetId, TRUE, $validFieldsOnly);
-    $form->_priceSet = CRM_Utils_Array::value($priceSetId, $priceSet);
+    $form->_priceSet = $priceSet[$priceSetId] ?? NULL;
     $validPriceFieldIds = array_keys($form->_priceSet['fields']);
     $form->_quickConfig = $quickConfig = 0;
     if (CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', $priceSetId, 'is_quick_config')) {
@@ -975,10 +842,10 @@ WHERE  id = %1";
 
     // Mark which field should have the auto-renew checkbox, if any. CRM-18305
     if (!empty($form->_membershipTypeValues) && is_array($form->_membershipTypeValues)) {
-      $autoRenewMembershipTypes = array();
-      foreach ($form->_membershipTypeValues as $membershiptTypeValue) {
-        if ($membershiptTypeValue['auto_renew']) {
-          $autoRenewMembershipTypes[] = $membershiptTypeValue['id'];
+      $autoRenewMembershipTypes = [];
+      foreach ($form->_membershipTypeValues as $membershipTypeValue) {
+        if ($membershipTypeValue['auto_renew']) {
+          $autoRenewMembershipTypes[] = $membershipTypeValue['id'];
         }
       }
       foreach ($form->_priceSet['fields'] as $field) {
@@ -995,6 +862,7 @@ WHERE  id = %1";
         }
       }
     }
+    $form->_priceSet['id'] = $form->_priceSet['id'] ?? $priceSetId;
     $form->assign('priceSet', $form->_priceSet);
 
     $component = 'contribution';
@@ -1011,6 +879,25 @@ WHERE  id = %1";
     else {
       $feeBlock = &$form->_priceSet['fields'];
     }
+
+    // Call the buildAmount hook.
+    CRM_Utils_Hook::buildAmount($component, $form, $feeBlock);
+
+    self::addPriceFieldsToForm($form, $feeBlock, $validFieldsOnly, $className, $validPriceFieldIds);
+  }
+
+  /**
+   * Apply ACLs on Financial Type to the price options in a fee block.
+   *
+   * @param array $feeBlock
+   *   Fee block: array of price fields.
+   *
+   * @deprecated not used in civi universe as at Oct 2020.
+   *
+   * @return void
+   */
+  public static function applyACLFinancialTypeStatusToFeeBlock(&$feeBlock) {
+    CRM_Core_Error::deprecatedFunctionWarning('enacted in financialtypeacl extension');
     if (CRM_Financial_BAO_FinancialType::isACLFinancialTypeStatus()) {
       foreach ($feeBlock as $key => $value) {
         foreach ($value['options'] as $k => $options) {
@@ -1020,58 +907,6 @@ WHERE  id = %1";
         }
         if (empty($feeBlock[$key]['options'])) {
           unset($feeBlock[$key]);
-        }
-      }
-    }
-    // call the hook.
-    CRM_Utils_Hook::buildAmount($component, $form, $feeBlock);
-
-    // CRM-14492 Admin price fields should show up on event registration if user has 'administer CiviCRM' permissions
-    $adminFieldVisible = FALSE;
-    if (CRM_Core_Permission::check('administer CiviCRM')) {
-      $adminFieldVisible = TRUE;
-    }
-
-    $hideAdminValues = TRUE;
-    if (CRM_Core_Permission::check('edit contributions')) {
-      $hideAdminValues = FALSE;
-    }
-
-    foreach ($feeBlock as $id => $field) {
-      if (CRM_Utils_Array::value('visibility', $field) == 'public' ||
-        (CRM_Utils_Array::value('visibility', $field) == 'admin' && $adminFieldVisible == TRUE) ||
-        !$validFieldsOnly
-      ) {
-        $options = CRM_Utils_Array::value('options', $field);
-        if ($className == 'CRM_Contribute_Form_Contribution_Main' && $component = 'membership') {
-          $userid = $form->getVar('_membershipContactID');
-          $checklifetime = self::checkCurrentMembership($options, $userid);
-          if ($checklifetime) {
-            $form->assign('ispricelifetime', TRUE);
-          }
-        }
-
-        $formClasses = array('CRM_Contribute_Form_Contribution', 'CRM_Member_Form_Membership');
-
-        if (!is_array($options) || !in_array($id, $validPriceFieldIds)) {
-          continue;
-        }
-        elseif ($hideAdminValues && !in_array($className, $formClasses)) {
-          foreach ($options as $key => $currentOption) {
-            if ($currentOption['visibility_id'] == CRM_Price_BAO_PriceField::getVisibilityOptionID('admin')) {
-              unset($options[$key]);
-            }
-          }
-        }
-        if (!empty($options)) {
-          CRM_Price_BAO_PriceField::addQuickFormElement($form,
-            'price_' . $field['id'],
-            $field['id'],
-            FALSE,
-            CRM_Utils_Array::value('is_required', $field, FALSE),
-            NULL,
-            $options
-          );
         }
       }
     }
@@ -1090,7 +925,7 @@ WHERE  id = %1";
     if (!$userid || empty($options)) {
       return FALSE;
     }
-    static $_contact_memberships = array();
+    static $_contact_memberships = [];
     $checkLifetime = FALSE;
     foreach ($options as $key => $value) {
       if (!empty($value['membership_type_id'])) {
@@ -1254,27 +1089,27 @@ WHERE  id = %1";
    */
   public static function copy($id) {
     $maxId = CRM_Core_DAO::singleValueQuery("SELECT max(id) FROM civicrm_price_set");
-    $priceSet = civicrm_api3('PriceSet', 'getsingle', array('id' => $id));
+    $priceSet = civicrm_api3('PriceSet', 'getsingle', ['id' => $id]);
 
     $newTitle = preg_replace('/\[Copy id \d+\]$/', "", $priceSet['title']);
-    $title = ts('[Copy id %1]', array(1 => $maxId + 1));
-    $fieldsFix = array(
-      'replace' => array(
+    $title = ts('[Copy id %1]', [1 => $maxId + 1]);
+    $fieldsFix = [
+      'replace' => [
         'title' => trim($newTitle) . ' ' . $title,
         'name' => substr($priceSet['name'], 0, 20) . 'price_set_' . ($maxId + 1),
-      ),
-    );
+      ],
+    ];
 
     $copy = CRM_Core_DAO::copyGeneric('CRM_Price_DAO_PriceSet',
-      array('id' => $id),
+      ['id' => $id],
       NULL,
       $fieldsFix
     );
 
     //copying all the blocks pertaining to the price set
     $copyPriceField = CRM_Core_DAO::copyGeneric('CRM_Price_DAO_PriceField',
-      array('price_set_id' => $id),
-      array('price_set_id' => $copy->id)
+      ['price_set_id' => $id],
+      ['price_set_id' => $copy->id]
     );
     if (!empty($copyPriceField)) {
       $price = array_combine(self::getFieldIds($id), self::getFieldIds($copy->id));
@@ -1282,14 +1117,15 @@ WHERE  id = %1";
       //copy option group and values
       foreach ($price as $originalId => $copyId) {
         CRM_Core_DAO::copyGeneric('CRM_Price_DAO_PriceFieldValue',
-          array('price_field_id' => $originalId),
-          array('price_field_id' => $copyId)
+          ['price_field_id' => $originalId],
+          ['price_field_id' => $copyId]
         );
       }
     }
     $copy->save();
 
     CRM_Utils_Hook::copy('Set', $copy);
+    unset(\Civi::$statics['CRM_Core_PseudoConstant']);
     return $copy;
   }
 
@@ -1300,12 +1136,13 @@ WHERE  id = %1";
    *   The price set id.
    *
    * @return bool
+   * @throws \CRM_Core_Exception
    */
   public static function checkPermission($sid) {
     if ($sid && self::eventPriceSetDomainID()) {
       $domain_id = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceSet', $sid, 'domain_id', 'id');
       if (CRM_Core_Config::domainID() != $domain_id) {
-        CRM_Core_Error::fatal(ts('You do not have permission to access this page.'));
+        CRM_Core_Error::statusBounce(ts('You do not have permission to access this page.'));
       }
     }
     return TRUE;
@@ -1333,7 +1170,7 @@ WHERE  id = %1";
       $where = 'AND  value.is_active = 1 AND field.is_active = 1';
     }
 
-    static $pricesetFieldCount = array();
+    static $pricesetFieldCount = [];
     if (!isset($pricesetFieldCount[$sid])) {
       $sql = "
     SELECT  sum(value.count) as totalCount
@@ -1343,7 +1180,7 @@ INNER JOIN  civicrm_price_set pset    ON ( pset.id = field.price_set_id )
      WHERE  pset.id = %1
             $where";
 
-      $count = CRM_Core_DAO::singleValueQuery($sql, array(1 => array($sid, 'Positive')));
+      $count = CRM_Core_DAO::singleValueQuery($sql, [1 => [$sid, 'Positive']]);
       $pricesetFieldCount[$sid] = ($count) ? $count : 0;
     }
 
@@ -1351,20 +1188,24 @@ INNER JOIN  civicrm_price_set pset    ON ( pset.id = field.price_set_id )
   }
 
   /**
-   * @param $ids
+   * Return a count of priceFieldValueIDs that are memberships by organisation and membership type
+   *
+   * @param string $priceFieldValueIDs
+   *   Comma separated string of priceFieldValue IDs
    *
    * @return array
+   *   Returns an array of counts by membership organisation
    */
-  public static function getMembershipCount($ids) {
+  public static function getMembershipCount($priceFieldValueIDs) {
     $queryString = "
 SELECT       count( pfv.id ) AS count, mt.member_of_contact_id AS id
 FROM         civicrm_price_field_value pfv
 INNER JOIN    civicrm_membership_type mt ON mt.id = pfv.membership_type_id
-WHERE        pfv.id IN ( $ids )
+WHERE        pfv.id IN ( $priceFieldValueIDs )
 GROUP BY     mt.member_of_contact_id ";
 
     $crmDAO = CRM_Core_DAO::executeQuery($queryString);
-    $count = array();
+    $count = [];
 
     while ($crmDAO->fetch()) {
       $count[$crmDAO->id] = $crmDAO->count;
@@ -1398,7 +1239,7 @@ GROUP BY     mt.member_of_contact_id ";
             AND   pfv.is_active = 1
             ORDER BY price_field_id';
 
-    $params = array(1 => array($priceSetId, 'Integer'));
+    $params = [1 => [$priceSetId, 'Integer']];
 
     $dao = CRM_Core_DAO::executeQuery($query, $params);
 
@@ -1409,7 +1250,7 @@ GROUP BY     mt.member_of_contact_id ";
     }
 
     $autoRenewOption = 2;
-    $priceFields = array();
+    $priceFields = [];
     while ($dao->fetch()) {
       if (!$dao->auto_renew) {
         // If any one can't be renewed none can.
@@ -1452,10 +1293,10 @@ GROUP BY     mt.member_of_contact_id ";
             INNER JOIN civicrm_price_field pf ON pfv.price_field_id = pf.id
             WHERE pf.price_set_id = %1 LIMIT 1';
 
-    $params = array(1 => array($priceSetId, 'Integer'));
+    $params = [1 => [$priceSetId, 'Integer']];
     $dao = CRM_Core_DAO::executeQuery($query, $params);
     $dao->fetch();
-    return array($dao->duration_interval, $dao->duration_unit);
+    return [$dao->duration_interval, $dao->duration_unit];
   }
 
   /**
@@ -1473,8 +1314,8 @@ GROUP BY     mt.member_of_contact_id ";
    * @param bool $isQuickConfig we want to set the is_quick_config field.
    *   Value we want to set the is_quick_config field.
    *
-   * @return Object
-   *   DAO object on success, null otherwise
+   * @return bool
+   *   true if we found and updated the object, else false
    */
   public static function setIsQuickConfig($id, $isQuickConfig) {
     return CRM_Core_DAO::setFieldValue('CRM_Price_DAO_PriceSet', $id, 'is_quick_config', $isQuickConfig);
@@ -1513,15 +1354,15 @@ LEFT JOIN   civicrm_membership_type mt ON mt.id = pfv.membership_type_id
 WHERE       ps.id = %1
 ";
 
-    $params = array(1 => array($id, 'Integer'));
+    $params = [1 => [$id, 'Integer']];
     $dao = CRM_Core_DAO::executeQuery($query, $params);
 
-    $membershipTypes = array(
-      'all' => array(),
-      'autorenew' => array(),
-      'autorenew_required' => array(),
-      'autorenew_optional' => array(),
-    );
+    $membershipTypes = [
+      'all' => [],
+      'autorenew' => [],
+      'autorenew_required' => [],
+      'autorenew_optional' => [],
+    ];
     while ($dao->fetch()) {
       if (empty($dao->membership_type_id)) {
         continue;
@@ -1562,12 +1403,12 @@ WHERE       ps.id = %1
         CRM_Price_BAO_PriceSet::addTo($baoName, $newId, $copyPriceSet->id);
       }
       else {
-        $copyPriceSet = &CRM_Core_DAO::copyGeneric('CRM_Price_DAO_PriceSetEntity',
-          array(
+        $copyPriceSet = CRM_Core_DAO::copyGeneric('CRM_Price_DAO_PriceSetEntity',
+          [
             'entity_id' => $id,
             'entity_table' => $baoName,
-          ),
-          array('entity_id' => $newId)
+          ],
+          ['entity_id' => $newId]
         );
       }
       // copy event discount
@@ -1579,13 +1420,13 @@ WHERE       ps.id = %1
 
           CRM_Core_DAO::copyGeneric(
             'CRM_Core_DAO_Discount',
-            array(
+            [
               'id' => $discountId,
-            ),
-            array(
+            ],
+            [
               'entity_id' => $newId,
               'price_set_id' => $copyPriceSet->id,
-            )
+            ]
           );
         }
       }
@@ -1642,7 +1483,7 @@ WHERE       ps.id = %1
    */
   public static function parsePriceSetValueIDsFromParams($params) {
     $priceSetParams = self::parsePriceSetArrayFromParams($params);
-    $priceSetValueIDs = array();
+    $priceSetValueIDs = [];
     foreach ($priceSetParams as $priceSetParam) {
       foreach (array_keys($priceSetParam) as $priceValueID) {
         $priceSetValueIDs[] = $priceValueID;
@@ -1660,7 +1501,7 @@ WHERE       ps.id = %1
    *   Array of price fields filtered from the params.
    */
   public static function parsePriceSetArrayFromParams($params) {
-    $priceSetParams = array();
+    $priceSetParams = [];
     foreach ($params as $field => $value) {
       $parts = explode('_', $field);
       if (count($parts) == 2 && $parts[0] == 'price' && is_numeric($parts[1]) && is_array($value)) {
@@ -1704,12 +1545,12 @@ WHERE       ps.id = %1
    *   )
    */
   public static function getFormsUsingPriceSet($id) {
-    $forms = array();
+    $forms = [];
     $queryString = "
 SELECT   entity_table, entity_id
 FROM     civicrm_price_set_entity
 WHERE    price_set_id = %1";
-    $params = array(1 => array($id, 'Integer'));
+    $params = [1 => [$id, 'Integer']];
     $crmFormDAO = CRM_Core_DAO::executeQuery($queryString, $params);
 
     while ($crmFormDAO->fetch()) {
@@ -1735,7 +1576,7 @@ WHERE    price_set_id = %1";
    * @throws \Exception
    */
   protected static function reformatUsedByFormsWithEntityData($forms) {
-    $usedBy = array();
+    $usedBy = [];
     foreach ($forms as $table => $entities) {
       switch ($table) {
         case 'civicrm_event':
@@ -1790,11 +1631,151 @@ WHERE     ct.id = cp.financial_type_id AND
           break;
 
         default:
-          CRM_Core_Error::fatal("$table is not supported in PriceSet::usedBy()");
-          break;
+          throw new CRM_Core_Exception("$table is not supported in PriceSet::usedBy()");
+
       }
     }
     return $usedBy;
+  }
+
+  /**
+   * Get the relevant line item.
+   *
+   * Note this is part of code being cleaned up / refactored & may change.
+   *
+   * @param array $params
+   * @param array $lineItem
+   * @param int $priceSetID
+   * @param array $field
+   * @param int $id
+   *
+   * @return array
+   */
+  public static function getLine(&$params, &$lineItem, $priceSetID, $field, $id): array {
+    $totalTax = 0;
+    switch ($field['html_type']) {
+      case 'Text':
+        $firstOption = reset($field['options']);
+        $params["price_{$id}"] = [$firstOption['id'] => $params["price_{$id}"]];
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
+        $optionValueId = key($field['options']);
+
+        if (CRM_Utils_Array::value('name', $field['options'][$optionValueId]) === 'contribution_amount') {
+          $taxRates = CRM_Core_PseudoConstant::getTaxRates();
+          if (array_key_exists($params['financial_type_id'], $taxRates)) {
+            $field['options'][key($field['options'])]['tax_rate'] = $taxRates[$params['financial_type_id']];
+            $taxAmount = CRM_Contribute_BAO_Contribution_Utils::calculateTaxAmount($field['options'][$optionValueId]['amount'], $field['options'][$optionValueId]['tax_rate']);
+            $field['options'][$optionValueId]['tax_amount'] = round($taxAmount['tax_amount'], 2);
+          }
+        }
+        if (!empty($field['options'][$optionValueId]['tax_rate'])) {
+          $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
+        }
+        break;
+
+      case 'Radio':
+        //special case if user select -none-
+        if ($params["price_{$id}"] <= 0) {
+          break;
+        }
+        $params["price_{$id}"] = [$params["price_{$id}"] => 1];
+        $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
+
+        // CRM-18701 Sometimes the amount in the price set is overridden by the amount on the form.
+        // This is notably the case with memberships and we need to put this amount
+        // on the line item rather than the calculated amount.
+        // This seems to only affect radio link items as that is the use case for the 'quick config'
+        // set up (which allows a free form field).
+        // @todo $priceSetID is a pseudoparam for permit override - we should stop passing it where we
+        // don't specifically need it & find a better way where we do.
+        $amount_override = NULL;
+
+        if ($priceSetID && count(self::filterPriceFieldsFromParams($priceSetID, $params)) === 1) {
+          $amount_override = CRM_Utils_Array::value('partial_payment_total', $params, CRM_Utils_Array::value('total_amount', $params));
+        }
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, $amount_override);
+        if (!empty($field['options'][$optionValueId]['tax_rate'])) {
+          $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
+          if ($amount_override) {
+            $lineItem[$optionValueId]['line_total'] = $lineItem[$optionValueId]['unit_price'] = CRM_Utils_Rule::cleanMoney($lineItem[$optionValueId]['line_total'] - $lineItem[$optionValueId]['tax_amount']);
+          }
+        }
+        break;
+
+      case 'Select':
+        $params["price_{$id}"] = [$params["price_{$id}"] => 1];
+        $optionValueId = CRM_Utils_Array::key(1, $params["price_{$id}"]);
+
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
+        if (!empty($field['options'][$optionValueId]['tax_rate'])) {
+          $lineItem = self::setLineItem($field, $lineItem, $optionValueId, $totalTax);
+        }
+        break;
+
+      case 'CheckBox':
+
+        CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem, CRM_Utils_Array::value('partial_payment_total', $params));
+        foreach ($params["price_{$id}"] as $optionId => $option) {
+          if (!empty($field['options'][$optionId]['tax_rate'])) {
+            $lineItem = self::setLineItem($field, $lineItem, $optionId, $totalTax);
+          }
+        }
+        break;
+    }
+    return [$params, $lineItem];
+  }
+
+  /**
+   * Add the relevant price fields to the form.
+   *
+   * @param \CRM_Core_Form $form
+   * @param array $feeBlock
+   * @param bool $validFieldsOnly
+   * @param string $className
+   * @param array $validPriceFieldIds
+   */
+  protected static function addPriceFieldsToForm(CRM_Core_Form $form, $feeBlock, bool $validFieldsOnly, string $className, array $validPriceFieldIds) {
+    $hideAdminValues = !CRM_Core_Permission::check('edit contributions');
+    // CRM-14492 Admin price fields should show up on event registration if user has 'administer CiviCRM' permissions
+    $adminFieldVisible = CRM_Core_Permission::check('administer CiviCRM');
+    foreach ($feeBlock as $id => $field) {
+      if (CRM_Utils_Array::value('visibility', $field) == 'public' ||
+        (CRM_Utils_Array::value('visibility', $field) == 'admin' && $adminFieldVisible == TRUE) ||
+        !$validFieldsOnly
+      ) {
+        $options = $field['options'] ?? NULL;
+        if ($className == 'CRM_Contribute_Form_Contribution_Main' && $component = 'membership') {
+          $userid = $form->getVar('_membershipContactID');
+          $checklifetime = self::checkCurrentMembership($options, $userid);
+          if ($checklifetime) {
+            $form->assign('ispricelifetime', TRUE);
+          }
+        }
+
+        $formClasses = ['CRM_Contribute_Form_Contribution', 'CRM_Member_Form_Membership'];
+
+        if (!is_array($options) || !in_array($id, $validPriceFieldIds)) {
+          continue;
+        }
+        elseif ($hideAdminValues && !in_array($className, $formClasses)) {
+          foreach ($options as $key => $currentOption) {
+            if ($currentOption['visibility_id'] == CRM_Price_BAO_PriceField::getVisibilityOptionID('admin')) {
+              unset($options[$key]);
+            }
+          }
+        }
+        if (!empty($options)) {
+          CRM_Price_BAO_PriceField::addQuickFormElement($form,
+            'price_' . $field['id'],
+            $field['id'],
+            FALSE,
+            CRM_Utils_Array::value('is_required', $field, FALSE),
+            NULL,
+            $options
+          );
+        }
+      }
+    }
   }
 
 }

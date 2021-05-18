@@ -1,36 +1,65 @@
 <?php
 /**
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  *
  * Generated from {$table.sourceFile}
  * {$generated}
  * (GenCodeChecksum:{$genCodeChecksum})
  */
-
+{$useHelper}
 /**
  * Database access object for the {$table.entity} entity.
  */
 class {$table.className} extends CRM_Core_DAO {ldelim}
+
+     const EXT = {$ext};
+     const TABLE_ADDED = '{$table.add}';
+     {if !empty($table.component)}const COMPONENT = '{$table.component}';{/if}
 
      /**
       * Static instance to hold the table name.
       *
       * @var string
       */
-      static $_tableName = '{$table.name}';
+      public static $_tableName = '{$table.name}';
 
+   {if $table.icon}
+     /**
+      * Icon associated with this entity.
+      *
+      * @var string
+      */
+      public static $_icon = '{$table.icon}';
+   {/if}
+
+   {if $table.labelField}
+     /**
+      * Field to show when displaying a record.
+      *
+      * @var string
+      */
+      public static $_labelField = '{$table.labelField}';
+   {/if}
       /**
        * Should CiviCRM log any modifications to this table in the civicrm_log table.
        *
        * @var bool
        */
-      static $_log = {$table.log|strtoupper};
+      public static $_log = {$table.log|strtoupper};
+      {if $table.paths}
+     /**
+      * Paths for accessing this entity in the UI.
+      *
+      * @var string[]
+      */
+      protected static $_paths = {$table.paths|@print_array};
+   {/if}
 
 {foreach from=$table.fields item=field}
     /**
 {if $field.comment}
-     * {$field.comment}
+     * {$field.comment|regex_replace:"/\n[ ]*/":"\n* "}
      *
 {/if}
      * @var {$field.phpType}
@@ -47,6 +76,18 @@ class {$table.className} extends CRM_Core_DAO {ldelim}
 
         parent::__construct( );
     {rdelim}
+
+    /**
+     * Returns localized title of this entity.
+     *
+     * @param bool $plural
+     *   Whether to return the plural version of the title.
+     */
+    public static function getEntityTitle($plural = FALSE) {ldelim}
+        return $plural ? {$tsFunctionName}('{$table.titlePlural}') : {$tsFunctionName}('{$table.title}');
+    {rdelim}
+
+
 
 {if $table.foreignKey || $table.dynamicForeignKey}
     /**
@@ -90,10 +131,10 @@ class {$table.className} extends CRM_Core_DAO {ldelim}
                  'name'      => '{$field.name}',
                                                                       'type'      => {$field.crmType},
 {if $field.title}
-                                                                      'title'     => ts('{$field.title}'),
+                                                                      'title'     => {$tsFunctionName}('{$field.title}'),
 {/if}
 {if $field.comment}
-                                                                      'description'     => '{$field.comment|replace:"'":"\'"}',
+                                                                      'description'     => {$tsFunctionName}('{$field.comment|replace:"'":"\'"}'),
 {/if}
 {if $field.required}
                                         'required'  => {$field.required|strtoupper},
@@ -116,45 +157,59 @@ class {$table.className} extends CRM_Core_DAO {ldelim}
 
 {if $field.import}
                       'import'    => {$field.import|strtoupper},
-                                                                      'where'     => '{$table.name}.{$field.name}',
-                                      'headerPattern' => '{$field.headerPattern}',
-                                      'dataPattern' => '{$field.dataPattern}',
+
 {/if} {* field.import *}
+  'where'     => '{$table.name}.{$field.name}',
+  {if $field.headerPattern}'headerPattern' => '{$field.headerPattern}',{/if}
+  {if $field.dataPattern}'dataPattern' => '{$field.dataPattern}',{/if}
 {if $field.export}
                       'export'    => {$field.export|strtoupper},
-                                      {if ! $field.import}
-                      'where'     => '{$table.name}.{$field.name}',
-                                      'headerPattern' => '{$field.headerPattern}',
-                                      'dataPattern' => '{$field.dataPattern}',
-              {/if}
 {/if} {* field.export *}
+{if $field.contactType}
+                      'contactType' => {if $field.contactType == 'null'}NULL{else}'{$field.contactType}'{/if},
+{/if}
 {if $field.rule}
                       'rule'      => '{$field.rule}',
 {/if} {* field.rule *}
-{if $field.default}
+{if !empty($field.permission)}
+                      'permission'      => {$field.permission|@print_array},
+{/if}
+{if $field.default || $field.default === '0'}
                          'default'   => '{if ($field.default[0]=="'" or $field.default[0]=='"')}{$field.default|substring:1:-1}{else}{$field.default}{/if}',
 {/if} {* field.default *}
   'table_name' => '{$table.name}',
   'entity' => '{$table.entity}',
   'bao' => '{$table.bao}',
   'localizable' => {if $field.localizable}1{else}0{/if},
+  {if $field.localize_context}'localize_context' => '{$field.localize_context}',{/if}
 
 {if $field.FKClassName}
                       'FKClassName' => '{$field.FKClassName}',
 {/if}
+{if !empty($field.component)}
+                      'component' => '{$field.component}',
+{/if}
 {if $field.serialize}
   'serialize' => self::SERIALIZE_{$field.serialize|strtoupper},
+{/if}
+{if $field.uniqueTitle}
+  'unique_title' => {$tsFunctionName}('{$field.uniqueTitle}'),
 {/if}
 {if $field.html}
   'html' => array(
   {foreach from=$field.html item=val key=key}
-    '{$key}' => {if $key eq 'label'}ts("{$val}"){else}'{$val}'{/if},
+    '{$key}' => {if $key eq 'label'}{$tsFunctionName}("{$val}"){else}'{$val}'{/if},
   {/foreach}
   ),
 {/if}
 {if $field.pseudoconstant}
-  'pseudoconstant' => {$field.pseudoconstant|@print_array}
-{/if} {* field.pseudoconstant *}                                                                    ),
+  'pseudoconstant' => {$field.pseudoconstant|@print_array},
+{/if}
+{if $field.readonly || $field.name === $table.primaryKey.name}
+  'readonly' => TRUE,
+{/if}
+  'add' => {if $field.add}'{$field.add}'{else}NULL{/if},
+),
 {/foreach} {* table.fields *}
                                       );
             CRM_Core_DAO_AllCoreTables::invoke(__CLASS__, 'fields_callback', Civi::$statics[__CLASS__]['fields']);

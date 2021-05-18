@@ -13,7 +13,22 @@ class CRM_Core_Reference_Dynamic extends CRM_Core_Reference_Basic {
    * @return bool
    */
   public function matchesTargetTable($tableName) {
+    // FIXME: Shouldn't this check against keys returned by getTargetEntities?
     return TRUE;
+  }
+
+  /**
+   * @return array
+   *   [table_name => EntityName]
+   */
+  public function getTargetEntities(): array {
+    $targetEntities = [];
+    $bao = CRM_Core_DAO_AllCoreTables::getClassForTable($this->refTable);
+    $targetTables = (array) $bao::buildOptions($this->refTypeColumn);
+    foreach ($targetTables as $table => $label) {
+      $targetEntities[$table] = CRM_Core_DAO_AllCoreTables::getEntityNameForTable($table);
+    }
+    return $targetEntities;
   }
 
   /**
@@ -28,12 +43,12 @@ class CRM_Core_Reference_Dynamic extends CRM_Core_Reference_Basic {
     $refColumn = $this->getReferenceKey();
     $targetColumn = $this->getTargetKey();
 
-    $params = array(
-      1 => array($targetDao->$targetColumn, 'String'),
+    $params = [
+      1 => [$targetDao->$targetColumn, 'String'],
       // If anyone complains about $targetDao::getTableName(), then could use
       // "{get_class($targetDao)}::getTableName();"
-      2 => array($targetDao::getTableName(), 'String'),
-    );
+      2 => [$targetDao::getTableName(), 'String'],
+    ];
 
     $sql = <<<EOS
 SELECT id
@@ -54,12 +69,12 @@ EOS;
    */
   public function getReferenceCount($targetDao) {
     $targetColumn = $this->getTargetKey();
-    $params = array(
-      1 => array($targetDao->$targetColumn, 'String'),
+    $params = [
+      1 => [$targetDao->$targetColumn, 'String'],
       // If anyone complains about $targetDao::getTableName(), then could use
       // "{get_class($targetDao)}::getTableName();"
-      2 => array($targetDao::getTableName(), 'String'),
-    );
+      2 => [$targetDao::getTableName(), 'String'],
+    ];
 
     $sql = <<<EOS
 SELECT count(id)
@@ -68,13 +83,13 @@ WHERE {$this->getReferenceKey()} = %1
 AND {$this->getTypeColumn()} = %2
 EOS;
 
-    return array(
-      'name' => implode(':', array('sql', $this->getReferenceTable(), $this->getReferenceKey())),
+    return [
+      'name' => implode(':', ['sql', $this->getReferenceTable(), $this->getReferenceKey()]),
       'type' => get_class($this),
       'table' => $this->getReferenceTable(),
       'key' => $this->getReferenceKey(),
       'count' => CRM_Core_DAO::singleValueQuery($sql, $params),
-    );
+    ];
   }
 
 }

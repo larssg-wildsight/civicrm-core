@@ -11,6 +11,9 @@
     <type>int unsigned</type>
     <required>true</required>
     <comment>Unique OpenID ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>2.0</add>
   </field>
   <primaryKey>
@@ -19,9 +22,12 @@
   </primaryKey>
   <field>
     <name>contact_id</name>
-    <title>OpenID Contact</title>
+    <title>Contact ID</title>
     <type>int unsigned</type>
     <comment>FK to Contact ID</comment>
+    <html>
+      <label>Contact</label>
+    </html>
     <add>2.0</add>
   </field>
   <foreignKey>
@@ -35,6 +41,11 @@
     <name>location_type_id</name>
     <title>OpenID Location Type</title>
     <type>int unsigned</type>
+    <pseudoconstant>
+      <table>civicrm_location_type</table>
+      <keyColumn>id</keyColumn>
+      <labelColumn>display_name</labelColumn>
+    </pseudoconstant>
     <comment>Which Location does this email belong to.</comment>
     <add>2.0</add>
   </field>
@@ -73,9 +84,12 @@
   </field>
   <field>
     <name>is_primary</name>
-    <title>Is OpenID Primary?</title>
+    <title>Primary ID</title>
     <type>boolean</type>
     <default>0</default>
+    <html>
+      <type>Radio</type>
+    </html>
     <comment>Is this the primary email for this contact and location.</comment>
     <add>2.0</add>
   </field>

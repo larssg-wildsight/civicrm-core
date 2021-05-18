@@ -1,188 +1,173 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Report_Form_Contact_LoggingSummary extends CRM_Logging_ReportSummary {
 
   public $optimisedForOnlyFullGroupBy = FALSE;
+
   /**
    * Class constructor.
    */
   public function __construct() {
     parent::__construct();
 
-    $logTypes = array();
+    $logTypes = [];
     foreach (array_keys($this->_logTables) as $table) {
       $type = $this->getLogType($table);
       $logTypes[$type] = $type;
     }
     asort($logTypes);
 
-    $this->_columns = array(
-      'log_civicrm_entity' => array(
+    $this->_columns = [
+      'log_civicrm_entity' => [
         'dao' => 'CRM_Contact_DAO_Contact',
         'alias' => 'entity_log',
-        'fields' => array(
-          'id' => array(
+        'fields' => [
+          'id' => [
             'no_display' => TRUE,
             'required' => TRUE,
-          ),
-          'log_grouping' => array(
+          ],
+          'log_grouping' => [
             'required' => TRUE,
             'title' => ts('Extra information to control grouping'),
             'no_display' => TRUE,
-          ),
-          'log_action' => array(
+          ],
+          'log_action' => [
             'default' => TRUE,
             'title' => ts('Action'),
-          ),
-          'log_type' => array(
+          ],
+          'log_type' => [
             'required' => TRUE,
             'title' => ts('Log Type'),
-          ),
-          'log_user_id' => array(
+          ],
+          'log_user_id' => [
             'no_display' => TRUE,
             'required' => TRUE,
-          ),
-          'log_date' => array(
+          ],
+          'log_date' => [
             'default' => TRUE,
             'required' => TRUE,
             'type' => CRM_Utils_Type::T_TIME,
             'title' => ts('When'),
-          ),
-          'altered_contact' => array(
+          ],
+          'altered_contact' => [
             'default' => TRUE,
             'name' => 'display_name',
             'title' => ts('Altered Contact'),
             'alias' => 'modified_contact_civireport',
-          ),
-          'altered_contact_id' => array(
+          ],
+          'altered_contact_id' => [
             'name' => 'id',
             'no_display' => TRUE,
             'required' => TRUE,
             'alias' => 'modified_contact_civireport',
-          ),
-          'log_conn_id' => array(
+          ],
+          'log_conn_id' => [
             'no_display' => TRUE,
             'required' => TRUE,
-          ),
-          'is_deleted' => array(
+          ],
+          'is_deleted' => [
             'no_display' => TRUE,
             'required' => TRUE,
             'alias' => 'modified_contact_civireport',
-          ),
-        ),
-        'filters' => array(
-          'log_date' => array(
+          ],
+        ],
+        'filters' => [
+          'log_date' => [
             'title' => ts('When'),
             'operatorType' => CRM_Report_Form::OP_DATE,
             'type' => CRM_Utils_Type::T_DATE,
-          ),
-          'altered_contact' => array(
+          ],
+          'altered_contact' => [
             'name' => 'display_name',
             'title' => ts('Altered Contact'),
             'type' => CRM_Utils_Type::T_STRING,
             'alias' => 'modified_contact_civireport',
-          ),
-          'altered_contact_id' => array(
+          ],
+          'altered_contact_id' => [
             'name' => 'id',
             'type' => CRM_Utils_Type::T_INT,
             'alias' => 'modified_contact_civireport',
             'no_display' => TRUE,
-          ),
-          'log_type' => array(
+          ],
+          'log_type' => [
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'options' => $logTypes,
             'title' => ts('Log Type'),
             'type' => CRM_Utils_Type::T_STRING,
-          ),
-          'log_type_table' => array(
+          ],
+          'log_type_table' => [
             'name' => 'log_type',
             'title' => ts('Log Type Table'),
             'type' => CRM_Utils_Type::T_STRING,
-          ),
-          'log_action' => array(
+          ],
+          'log_action' => [
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
-            'options' => array(
+            'options' => [
               'Insert' => ts('Insert'),
               'Update' => ts('Update'),
               'Delete' => ts('Delete'),
-            ),
+            ],
             'title' => ts('Action'),
             'type' => CRM_Utils_Type::T_STRING,
-          ),
-          'id' => array(
+          ],
+          'id' => [
             'no_display' => TRUE,
             'type' => CRM_Utils_Type::T_INT,
-          ),
-        ),
-        'order_bys' => array(
-          'log_date' => array(
+          ],
+        ],
+        'order_bys' => [
+          'log_date' => [
             'title' => ts('Log Date (When)'),
             'default' => TRUE,
             'default_weight' => '0',
             'default_order' => 'DESC',
-          ),
-          'altered_contact' => array(
+          ],
+          'altered_contact' => [
             'name' => 'display_name',
             'title' => ts('Altered Contact'),
             'alias' => 'modified_contact_civireport',
-          ),
-        ),
-      ),
-      'altered_by_contact' => array(
+          ],
+        ],
+      ],
+      'altered_by_contact' => [
         'dao' => 'CRM_Contact_DAO_Contact',
         'alias' => 'altered_by_contact',
-        'fields' => array(
-          'display_name' => array(
+        'fields' => [
+          'display_name' => [
             'default' => TRUE,
             'name' => 'display_name',
             'title' => ts('Altered By'),
-          ),
-        ),
-        'filters' => array(
-          'display_name' => array(
+          ],
+        ],
+        'filters' => [
+          'display_name' => [
             'name' => 'display_name',
             'title' => ts('Altered By'),
             'type' => CRM_Utils_Type::T_STRING,
-          ),
-        ),
-        'order_bys' => array(
-          'altered_by_contact' => array(
+          ],
+        ],
+        'order_bys' => [
+          'altered_by_contact' => [
             'name' => 'display_name',
             'title' => ts('Altered by'),
-          ),
-        ),
-      ),
-    );
+          ],
+        ],
+      ],
+    ];
   }
 
   /**
@@ -193,11 +178,14 @@ class CRM_Report_Form_Contact_LoggingSummary extends CRM_Logging_ReportSummary {
    *
    * @param array $rows
    *   Rows generated by SQL, with an array for each row.
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
   public function alterDisplay(&$rows) {
     // cache for id → is_deleted mapping
-    $isDeleted = array();
-    $newRows = array();
+    $isDeleted = [];
+    $newRows = [];
 
     foreach ($rows as $key => &$row) {
       $isMerge = 0;
@@ -221,9 +209,9 @@ class CRM_Report_Form_Contact_LoggingSummary extends CRM_Logging_ReportSummary {
         $row['log_civicrm_entity_altered_contact_hover'] = ts("Go to contact summary");
         $entity = $this->getEntityValue($row['log_civicrm_entity_id'], $row['log_civicrm_entity_log_type'], $row['log_civicrm_entity_log_date']);
         if ($entity) {
-          $row['log_civicrm_entity_altered_contact'] = $row['log_civicrm_entity_altered_contact'] . " [{$entity}]";
+          $row['log_civicrm_entity_altered_contact'] .= " [{$entity}]";
         }
-        if ($entity == 'Contact Merged') {
+        if ($entity === 'Contact Merged') {
           // We're looking at a merge activity created against the surviving
           // contact record. There should be a single activity created against
           // the deleted contact record, with this activity as parent.
@@ -243,14 +231,14 @@ class CRM_Report_Form_Contact_LoggingSummary extends CRM_Logging_ReportSummary {
 
       }
       $row['altered_by_contact_display_name_link'] = CRM_Utils_System::url('civicrm/contact/view', 'reset=1&cid=' . $row['log_civicrm_entity_log_user_id']);
-      $row['altered_by_contact_display_name_hover'] = ts("Go to contact summary");
+      $row['altered_by_contact_display_name_hover'] = ts('Go to contact summary');
 
-      if ($row['log_civicrm_entity_is_deleted'] and 'Update' == CRM_Utils_Array::value('log_civicrm_entity_log_action', $row)) {
+      if ($row['log_civicrm_entity_is_deleted'] && 'Update' === $row['log_civicrm_entity_log_action']) {
         $row['log_civicrm_entity_log_action'] = ts('Delete (to trash)');
       }
 
-      if ('Contact' == CRM_Utils_Array::value('log_type', $this->_logTables[$row['log_civicrm_entity_log_type']]) &&
-        CRM_Utils_Array::value('log_civicrm_entity_log_action', $row) == ts('Insert')
+      if ('Contact' === ($this->_logTables[$row['log_civicrm_entity_log_type']]['log_type'] ?? NULL) &&
+        $row['log_civicrm_entity_log_action'] === ts('Insert')
       ) {
         $row['log_civicrm_entity_log_action'] = ts('Update');
       }
@@ -261,7 +249,7 @@ class CRM_Report_Form_Contact_LoggingSummary extends CRM_Logging_ReportSummary {
       if ($newAction = $this->getEntityAction($row['log_civicrm_entity_id'],
         $row['log_civicrm_entity_log_conn_id'],
         $row['log_civicrm_entity_log_type'],
-        CRM_Utils_Array::value('log_civicrm_entity_log_action', $row))
+        ($row['log_civicrm_entity_log_action'] ?? NULL))
       ) {
         $row['log_civicrm_entity_log_action'] = $newAction;
       }
@@ -270,7 +258,7 @@ class CRM_Report_Form_Contact_LoggingSummary extends CRM_Logging_ReportSummary {
 
       $date = CRM_Utils_Date::isoToMysql($row['log_civicrm_entity_log_date']);
 
-      if ('Update' == CRM_Utils_Array::value('log_civicrm_entity_log_action', $row)) {
+      if (in_array(($row['log_civicrm_entity_log_action'] ?? NULL), ['Update', 'Delete'])) {
         $row = $this->addDetailReportLinksToRow($baseQueryCriteria, $row);
       }
 
@@ -308,8 +296,8 @@ class CRM_Report_Form_Contact_LoggingSummary extends CRM_Logging_ReportSummary {
     $entity = $this->currentLogTable;
 
     $detail = $this->_logTables[$entity];
-    $tableName = CRM_Utils_Array::value('table_name', $detail, $entity);
-    $clause = CRM_Utils_Array::value('entity_table', $detail);
+    $tableName = $detail['table_name'] ?? $entity;
+    $clause = $detail['entity_table'] ?? NULL;
     $clause = $clause ? "AND entity_log_civireport.entity_table = 'civicrm_contact'" : NULL;
 
     $joinClause = "
@@ -317,7 +305,7 @@ INNER JOIN civicrm_contact modified_contact_civireport
         ON (entity_log_civireport.{$detail['fk']} = modified_contact_civireport.id {$clause})";
 
     if (!empty($detail['joins'])) {
-      $clause = CRM_Utils_Array::value('entity_table', $detail);
+      $clause = $detail['entity_table'] ?? NULL;
       $clause = $clause ? "AND fk_table.entity_table = 'civicrm_contact'" : NULL;
       $joinClause = "
 INNER JOIN `{$this->loggingDB}`.{$detail['joins']['table']} fk_table ON {$detail['joins']['join']}
@@ -348,6 +336,7 @@ LEFT  JOIN civicrm_contact altered_by_contact_civireport
   protected function addDetailReportLinksToRow($baseQueryCriteria, $row) {
     $q = $baseQueryCriteria;
     $q .= (!empty($row['log_civicrm_entity_altered_contact'])) ? '&alteredName=' . $row['log_civicrm_entity_altered_contact'] : '';
+    $q .= (!empty($row['log_civicrm_entity_altered_contact_id'])) ? '&cid=' . $row['log_civicrm_entity_altered_contact_id'] : '';
     $q .= (!empty($row['altered_by_contact_display_name'])) ? '&alteredBy=' . $row['altered_by_contact_display_name'] : '';
     $q .= (!empty($row['log_civicrm_entity_log_user_id'])) ? '&alteredById=' . $row['log_civicrm_entity_log_user_id'] : '';
 

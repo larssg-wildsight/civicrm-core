@@ -1,41 +1,20 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Financial_BAO_FinancialAccount extends CRM_Financial_DAO_FinancialAccount {
-
-  /**
-   * Static holder for the default LT.
-   */
-  static $_defaultContributionType = NULL;
 
   /**
    * Class constructor.
@@ -54,7 +33,7 @@ class CRM_Financial_BAO_FinancialAccount extends CRM_Financial_DAO_FinancialAcco
    *
    * @return CRM_Financial_BAO_FinancialAccount
    */
-  public static function retrieve(&$params, &$defaults) {
+  public static function retrieve(&$params, &$defaults = []) {
     $financialAccount = new CRM_Financial_DAO_FinancialAccount();
     $financialAccount->copyValues($params);
     if ($financialAccount->find(TRUE)) {
@@ -72,8 +51,8 @@ class CRM_Financial_BAO_FinancialAccount extends CRM_Financial_DAO_FinancialAcco
    * @param bool $is_active
    *   Value we want to set the is_active field.
    *
-   * @return CRM_Core_DAO|null
-   *   DAO object on success, null otherwise
+   * @return bool
+   *   true if we found and updated the object, else false
    */
   public static function setIsActive($id, $is_active) {
     return CRM_Core_DAO::setFieldValue('CRM_Financial_DAO_FinancialAccount', $id, 'is_active', $is_active);
@@ -106,7 +85,7 @@ class CRM_Financial_BAO_FinancialAccount extends CRM_Financial_DAO_FinancialAcco
     }
     if (!empty($params['is_default'])) {
       $query = 'UPDATE civicrm_financial_account SET is_default = 0 WHERE financial_account_type_id = %1';
-      $queryParams = array(1 => array($params['financial_account_type_id'], 'Integer'));
+      $queryParams = [1 => [$params['financial_account_type_id'], 'Integer']];
       CRM_Core_DAO::executeQuery($query, $queryParams);
     }
 
@@ -134,6 +113,7 @@ class CRM_Financial_BAO_FinancialAccount extends CRM_Financial_DAO_FinancialAcco
       $op = 'edit';
     }
     CRM_Utils_Hook::post($op, 'FinancialAccount', $financialAccount->id, $financialAccount);
+    CRM_Core_PseudoConstant::flush();
 
     return $financialAccount;
   }
@@ -148,11 +128,11 @@ class CRM_Financial_BAO_FinancialAccount extends CRM_Financial_DAO_FinancialAcco
     $check = FALSE;
 
     //check dependencies
-    $dependency = array(
-      array('Core', 'FinancialTrxn', 'to_financial_account_id'),
-      array('Financial', 'FinancialTypeAccount', 'financial_account_id'),
-      array('Financial', 'FinancialItem', 'financial_account_id'),
-    );
+    $dependency = [
+      ['Core', 'FinancialTrxn', 'to_financial_account_id'],
+      ['Financial', 'FinancialTypeAccount', 'financial_account_id'],
+      ['Financial', 'FinancialItem', 'financial_account_id'],
+    ];
     foreach ($dependency as $name) {
       require_once str_replace('_', DIRECTORY_SEPARATOR, "CRM_" . $name[0] . "_BAO_" . $name[1]) . ".php";
       $className = "CRM_{$name[0]}_BAO_{$name[1]}";
@@ -191,10 +171,10 @@ LEFT JOIN civicrm_entity_financial_account cefa ON cefa.entity_id = cft.id AND c
 LEFT JOIN  civicrm_financial_account cfa ON cefa.financial_account_id = cfa.id
 WHERE cft.id = %1
   AND account_relationship = %2";
-    $params = array(
-      1 => array($financialTypeId, 'Integer'),
-      2 => array($relationTypeId, 'Integer'),
-    );
+    $params = [
+      1 => [$financialTypeId, 'Integer'],
+      2 => [$relationTypeId, 'Integer'],
+    ];
     return CRM_Core_DAO::singleValueQuery($query, $params);
   }
 
@@ -219,11 +199,11 @@ WHERE cft.id = %1
     }
     $query = "SELECT count(id) FROM civicrm_financial_account WHERE financial_account_type_id = %1 AND LCASE(account_type_code) = %2
       AND id != %3 AND is_active = 1;";
-    $params = array(
-      1 => array($financialAccountTypeId, 'Integer'),
-      2 => array(strtolower($accountTypeCode), 'String'),
-      3 => array($financialAccountId, 'Integer'),
-    );
+    $params = [
+      1 => [$financialAccountTypeId, 'Integer'],
+      2 => [strtolower($accountTypeCode), 'String'],
+      3 => [$financialAccountId, 'Integer'],
+    ];
     return CRM_Core_DAO::singleValueQuery($query, $params);
   }
 
@@ -236,6 +216,8 @@ WHERE cft.id = %1
    *
    * Note that we avoid the CRM_Core_PseudoConstant function as it stores one
    * account per financial type and is unreliable.
+   * @todo Not sure what the above comment means, and the function uses the
+   * PseudoConstant twice. Three times if you count the for loop.
    *
    * @param int $financialTypeID
    *
@@ -244,33 +226,51 @@ WHERE cft.id = %1
    * @return int
    */
   public static function getFinancialAccountForFinancialTypeByRelationship($financialTypeID, $relationshipType) {
-    $relationTypeId = key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE '{$relationshipType}' "));
+    // This is keyed on the `value` column from civicrm_option_value
+    $accountRelationshipsByValue = CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, NULL, 'name');
+    // We look up by the name a couple times below, so flip it.
+    $accountRelationships = array_flip($accountRelationshipsByValue);
+
+    $relationTypeId = $accountRelationships[$relationshipType] ?? NULL;
 
     if (!isset(Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$relationTypeId])) {
-      $accounts = civicrm_api3('EntityFinancialAccount', 'get', array(
+      $accounts = civicrm_api3('EntityFinancialAccount', 'get', [
         'entity_id' => $financialTypeID,
         'entity_table' => 'civicrm_financial_type',
-      ));
+      ]);
 
       foreach ($accounts['values'] as $account) {
         Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$account['account_relationship']] = $account['financial_account_id'];
       }
 
-      $accountRelationships = CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL);
-
-      $incomeAccountRelationshipID = array_search('Income Account is', $accountRelationships);
+      $incomeAccountRelationshipID = $accountRelationships['Income Account is'] ?? FALSE;
       $incomeAccountFinancialAccountID = Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$incomeAccountRelationshipID];
 
-      foreach (array('Chargeback Account is', 'Credit/Contra Revenue Account is') as $optionalAccountRelationship) {
+      foreach (['Chargeback Account is', 'Credit/Contra Revenue Account is'] as $optionalAccountRelationship) {
 
-        $accountRelationshipID = array_search($optionalAccountRelationship, $accountRelationships);
+        $accountRelationshipID = $accountRelationships[$optionalAccountRelationship] ?? FALSE;
         if (empty(Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$accountRelationshipID])) {
           Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$accountRelationshipID] = $incomeAccountFinancialAccountID;
         }
       }
-
+      if (!isset(Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$relationTypeId])) {
+        Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$relationTypeId] = NULL;
+      }
     }
     return Civi::$statics[__CLASS__]['entity_financial_account'][$financialTypeID][$relationTypeId];
+  }
+
+  /**
+   * Get the sales tax financial account id for the financial type id.
+   *
+   * This is a helper wrapper to make the function name more readable.
+   *
+   * @param int $financialAccountID
+   *
+   * @return int
+   */
+  public static function getSalesTaxFinancialAccount($financialAccountID) {
+    return self::getFinancialAccountForFinancialTypeByRelationship($financialAccountID, 'Sales Tax Account is');
   }
 
   /**
@@ -282,10 +282,10 @@ WHERE cft.id = %1
    *
    */
   public static function getfinancialAccountRelations($flip = FALSE) {
-    $params = array('labelColumn' => 'name');
+    $params = ['labelColumn' => 'name'];
     $financialAccountType = CRM_Core_PseudoConstant::get('CRM_Financial_DAO_FinancialAccount', 'financial_account_type_id', $params);
     $accountRelationships = CRM_Core_PseudoConstant::get('CRM_Financial_DAO_EntityFinancialAccount', 'account_relationship', $params);
-    $Links = array(
+    $Links = [
       'Expense Account is' => 'Expenses',
       'Accounts Receivable Account is' => 'Asset',
       'Income Account is' => 'Revenue',
@@ -295,7 +295,7 @@ WHERE cft.id = %1
       'Discounts Account is' => 'Revenue',
       'Sales Tax Account is' => 'Liability',
       'Deferred Revenue Account is' => 'Liability',
-    );
+    ];
     if (!$flip) {
       foreach ($Links as $accountRelation => $accountType) {
         $financialAccountLinks[array_search($accountRelation, $accountRelationships)] = array_search($accountType, $financialAccountType);
@@ -316,12 +316,12 @@ WHERE cft.id = %1
    *
    */
   public static function getDeferredFinancialType() {
-    $deferredFinancialType = array();
+    $deferredFinancialType = [];
     $query = "SELECT ce.entity_id, cft.name FROM civicrm_entity_financial_account ce
 INNER JOIN civicrm_financial_type cft ON ce.entity_id = cft.id
 WHERE ce.entity_table = 'civicrm_financial_type' AND ce.account_relationship = %1 AND cft.is_active = 1";
     $deferredAccountRel = key(CRM_Core_PseudoConstant::accountOptionValues('account_relationship', NULL, " AND v.name LIKE 'Deferred Revenue Account is' "));
-    $queryParams = array(1 => array($deferredAccountRel, 'Integer'));
+    $queryParams = [1 => [$deferredAccountRel, 'Integer']];
     $dao = CRM_Core_DAO::executeQuery($query, $queryParams);
     while ($dao->fetch()) {
       $deferredFinancialType[$dao->entity_id] = $dao->name;
@@ -344,20 +344,20 @@ WHERE ce.entity_table = 'civicrm_financial_type' AND ce.account_relationship = %
 INNER JOIN civicrm_financial_item fi ON fi.financial_account_id = f.id
 WHERE f.id = %1 AND f.financial_account_type_id IN (%2)
 LIMIT 1";
-    $params = array('labelColumn' => 'name');
+    $params = ['labelColumn' => 'name'];
     $financialAccountType = CRM_Core_PseudoConstant::get('CRM_Financial_DAO_FinancialAccount', 'financial_account_type_id', $params);
-    $params = array(
-      1 => array($financialAccountId, 'Integer'),
-      2 => array(
+    $params = [
+      1 => [$financialAccountId, 'Integer'],
+      2 => [
         implode(',',
-          array(
+          [
             array_search('Revenue', $financialAccountType),
             array_search('Liability', $financialAccountType),
-          )
+          ]
         ),
         'Text',
-      ),
-    );
+      ],
+    ];
     $result = CRM_Core_DAO::singleValueQuery($sql, $params);
     if ($result && $result != $financialAccountTypeID) {
       return TRUE;
@@ -375,40 +375,31 @@ LIMIT 1";
    * @param int $contributionID
    *   Contribution ID
    *
-   * @param array $priceSetFields
-   *   Array of price fields of a price set.
+   * @param array $orderLineItems
+   *   The line items from the Order.
    *
    * @return bool
    *
    */
-  public static function checkFinancialTypeHasDeferred($params, $contributionID = NULL, $priceSetFields = NULL) {
-    if (!CRM_Contribute_BAO_Contribution::checkContributeSettings('deferred_revenue_enabled')) {
+  public static function checkFinancialTypeHasDeferred($params, $contributionID = NULL, $orderLineItems = []) {
+    if (!Civi::settings()->get('deferred_revenue_enabled')) {
       return FALSE;
     }
-    $recognitionDate = CRM_Utils_Array::value('revenue_recognition_date', $params);
+    $recognitionDate = $params['revenue_recognition_date'] ?? NULL;
     if (!(!CRM_Utils_System::isNull($recognitionDate)
       || ($contributionID && isset($params['prevContribution'])
-      && !CRM_Utils_System::isNull($params['prevContribution']->revenue_recognition_date)))
+        && !CRM_Utils_System::isNull($params['prevContribution']->revenue_recognition_date)))
     ) {
       return FALSE;
     }
 
-    $lineItems = CRM_Utils_Array::value('line_item', $params);
-    $financialTypeID = CRM_Utils_Array::value('financial_type_id', $params);
+    $lineItems = $params['line_item'] ?? NULL;
+    $financialTypeID = $params['financial_type_id'] ?? NULL;
     if (!$financialTypeID) {
       $financialTypeID = $params['prevContribution']->financial_type_id;
     }
     if (($contributionID || !empty($params['price_set_id'])) && empty($lineItems)) {
-      if (!$contributionID) {
-        CRM_Price_BAO_PriceSet::processAmount($priceSetFields,
-        $params, $items);
-      }
-      else {
-        $items = CRM_Price_BAO_LineItem::getLineItems($contributionID, 'contribution', TRUE, TRUE, TRUE);
-      }
-      if (!empty($items)) {
-        $lineItems[] = $items;
-      }
+      $lineItems[] = $orderLineItems;
     }
     $deferredFinancialType = self::getDeferredFinancialType();
     $isError = FALSE;
@@ -440,13 +431,13 @@ LIMIT 1";
    *
    */
   public static function getAllDeferredFinancialAccount() {
-    $financialAccount = array();
-    $result = civicrm_api3('EntityFinancialAccount', 'get', array(
+    $financialAccount = [];
+    $result = civicrm_api3('EntityFinancialAccount', 'get', [
       'sequential' => 1,
-      'return' => array("financial_account_id.id", "financial_account_id.name", "financial_account_id.accounting_code"),
+      'return' => ["financial_account_id.id", "financial_account_id.name", "financial_account_id.accounting_code"],
       'entity_table' => "civicrm_financial_type",
       'account_relationship' => "Deferred Revenue Account is",
-    ));
+    ]);
     if ($result['count'] > 0) {
       foreach ($result['values'] as $key => $value) {
         $financialAccount[$value['financial_account_id.id']] = $value['financial_account_id.name'] . ' (' . $value['financial_account_id.accounting_code'] . ')';
@@ -464,13 +455,13 @@ LIMIT 1";
    *
    */
   public static function getOrganizationNames($checkPermissions = TRUE) {
-    $result = civicrm_api3('FinancialAccount', 'get', array(
-      'return' => array("contact_id.organization_name", "contact_id"),
+    $result = civicrm_api3('FinancialAccount', 'get', [
+      'return' => ["contact_id.organization_name", "contact_id"],
       'contact_id.is_deleted' => 0,
-      'options' => array('limit' => 0),
+      'options' => ['limit' => 0],
       'check_permissions' => $checkPermissions,
-    ));
-    $organizationNames = array();
+    ]);
+    $organizationNames = [];
     foreach ($result['values'] as $values) {
       $organizationNames[$values['contact_id']] = $values['contact_id.organization_name'];
     }

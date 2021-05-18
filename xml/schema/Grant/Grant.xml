@@ -6,6 +6,14 @@
   <comment>This table stores information about grants given to a contact.</comment>
   <add>1.8</add>
   <log>true</log>
+  <icon>fa-money</icon>
+  <component>CiviGrant</component>
+  <paths>
+    <add>civicrm/grant/add?reset=1&amp;action=add&amp;context=standalone</add>
+    <view>civicrm/contact/view/grant?reset=1&amp;action=view&amp;id=[id]&amp;cid=[contact_id]</view>
+    <update>civicrm/contact/view/grant?reset=1&amp;action=update&amp;id=[id]&amp;cid=[contact_id]</update>
+    <delete>civicrm/contact/view/grant?reset=1&amp;action=delete&amp;id=[id]&amp;cid=[contact_id]</delete>
+  </paths>
   <field>
     <name>id</name>
     <type>int unsigned</type>
@@ -14,6 +22,9 @@
     <required>true</required>
     <comment>Unique Grant id</comment>
     <import>true</import>
+    <html>
+      <type>Number</type>
+    </html>
     <add>1.8</add>
   </field>
   <primaryKey>
@@ -30,8 +41,9 @@
     <comment>Contact ID of contact record given grant belongs to.</comment>
     <add>1.8</add>
     <html>
-       <type>EntityRef</type>
-     </html>
+      <type>EntityRef</type>
+      <label>Contact</label>
+    </html>
   </field>
   <foreignKey>
     <name>contact_id</name>
@@ -43,6 +55,7 @@
   <field>
     <name>application_received_date</name>
     <title>Application received date</title>
+    <uniqueName>grant_application_received_date</uniqueName>
     <type>date</type>
     <export>true</export>
     <import>true</import>
@@ -56,6 +69,7 @@
   <field>
     <name>decision_date</name>
     <title>Decision date</title>
+    <uniqueName>grant_decision_date</uniqueName>
     <type>date</type>
     <comment>Date on which grant decision was made.</comment>
     <import>true</import>
@@ -81,7 +95,7 @@
   <field>
     <name>grant_due_date</name>
     <type>date</type>
-    <title>Grant Due Date</title>
+    <title>Grant Report Due Date</title>
     <comment>Date on which grant report is due.</comment>
     <add>1.8</add>
     <import>true</import>
@@ -165,24 +179,16 @@
     <required>true</required>
     <comment>3 character string, value from config setting or input via user.</comment>
     <add>3.2</add>
-      <pseudoconstant>
-        <table>civicrm_currency</table>
-        <keyColumn>name</keyColumn>
-        <labelColumn>full_name</labelColumn>
-        <nameColumn>name</nameColumn>
-      </pseudoconstant>
-      <html>
-        <type>Select</type>
-      </html>
-  </field>
-  <field>
-    <name>currency</name>
-    <type>varchar</type>
-    <length>8</length>
-    <default>NULL</default>
-    <comment>3 character string, value from config setting or input via user.</comment>
-    <add>3.2</add>
-    <drop>4.3</drop>
+    <pseudoconstant>
+      <table>civicrm_currency</table>
+      <keyColumn>name</keyColumn>
+      <labelColumn>full_name</labelColumn>
+      <nameColumn>name</nameColumn>
+      <abbrColumn>symbol</abbrColumn>
+    </pseudoconstant>
+    <html>
+      <type>Select</type>
+    </html>
   </field>
   <field>
     <name>rationale</name>
@@ -205,7 +211,7 @@
     <required>true</required>
     <import>true</import>
     <export>false</export>
-    <comment>Id of Grant status.</comment>
+    <comment>ID of Grant status.</comment>
     <pseudoconstant>
       <optionGroupName>grant_status</optionGroupName>
     </pseudoconstant>
@@ -221,7 +227,7 @@
   </index>
   <field>
     <name>financial_type_id</name>
-    <title>Financial Type</title>
+    <title>Financial Type ID</title>
     <type>int unsigned</type>
     <default>NULL</default>
     <pseudoconstant>
@@ -230,6 +236,9 @@
       <labelColumn>name</labelColumn>
     </pseudoconstant>
     <comment>FK to Financial Type.</comment>
+    <html>
+      <label>Financial Type</label>
+    </html>
     <add>4.3</add>
   </field>
   <foreignKey>

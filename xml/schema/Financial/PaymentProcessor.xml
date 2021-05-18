@@ -5,12 +5,16 @@
   <class>PaymentProcessor</class>
   <name>civicrm_payment_processor</name>
   <add>1.8</add>
+  <component>CiviContribute</component>
   <field>
     <name>id</name>
     <title>Payment Processor ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <comment>Payment Processor ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>1.8</add>
   </field>
   <primaryKey>
@@ -19,7 +23,7 @@
   </primaryKey>
   <field>
     <name>domain_id</name>
-    <title>Payment Processor Domain</title>
+    <title>Domain ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <pseudoconstant>
@@ -28,6 +32,9 @@
       <labelColumn>name</labelColumn>
     </pseudoconstant>
     <comment>Which Domain is this match entry for</comment>
+    <html>
+      <label>Domain</label>
+    </html>
     <add>3.0</add>
   </field>
   <foreignKey>
@@ -48,31 +55,42 @@
     </html>
   </field>
   <field>
+    <name>title</name>
+    <title>Payment Processor Title</title>
+    <type>varchar</type>
+    <length>127</length>
+    <localizable>true</localizable>
+    <html>
+      <type>Text</type>
+    </html>
+    <comment>Payment Processor Descriptive Name.</comment>
+    <add>5.13</add>
+  </field>
+  <field>
     <name>description</name>
     <title>Processor Description</title>
     <type>varchar</type>
     <length>255</length>
+    <html>
+      <type>Text</type>
+    </html>
     <comment>Payment Processor Description.</comment>
     <add>1.8</add>
   </field>
   <field>
-    <name>payment_processor_type</name>
-    <type>varchar</type>
-    <length>255</length>
-    <comment>Payment Processor Type.</comment>
-    <add>1.8</add>
-    <drop>4.3</drop>
-  </field>
-  <field>
     <name>payment_processor_type_id</name>
-    <title>Payment Processor Type ID</title>
+    <title>Type ID</title>
     <type>int unsigned</type>
     <pseudoconstant>
       <table>civicrm_payment_processor_type</table>
       <keyColumn>id</keyColumn>
       <labelColumn>title</labelColumn>
     </pseudoconstant>
+    <required>true</required>
     <length>10</length>
+    <html>
+      <label>Type</label>
+    </html>
     <add>4.3</add>
   </field>
   <foreignKey>
@@ -87,6 +105,7 @@
     <type>boolean</type>
     <comment>Is this processor active?</comment>
     <add>1.8</add>
+    <default>1</default>
   </field>
   <field>
     <name>is_default</name>
@@ -94,6 +113,7 @@
     <type>boolean</type>
     <comment>Is this processor the default?</comment>
     <add>1.8</add>
+    <default>0</default>
   </field>
   <field>
     <name>is_test</name>
@@ -101,6 +121,7 @@
     <type>boolean</type>
     <comment>Is this processor for a test site?</comment>
     <add>1.8</add>
+    <default>0</default>
   </field>
   <index>
     <name>UI_name_test_domain_id</name>

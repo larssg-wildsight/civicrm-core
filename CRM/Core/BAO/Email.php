@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -47,26 +31,8 @@ class CRM_Core_BAO_Email extends CRM_Core_DAO_Email {
    * @return object
    */
   public static function create($params) {
-    // if id is set & is_primary isn't we can assume no change
-    if (is_numeric(CRM_Utils_Array::value('is_primary', $params)) || empty($params['id'])) {
-      CRM_Core_BAO_Block::handlePrimary($params, get_class());
-    }
+    CRM_Core_BAO_Block::handlePrimary($params, get_class());
 
-    $email = CRM_Core_BAO_Email::add($params);
-
-    return $email;
-  }
-
-  /**
-   * Takes an associative array and adds email.
-   *
-   * @param array $params
-   *   (reference ) an assoc array of name/value pairs.
-   *
-   * @return object
-   *   CRM_Core_BAO_Email object on success, null otherwise
-   */
-  public static function add(&$params) {
     $hook = empty($params['id']) ? 'create' : 'edit';
     CRM_Utils_Hook::pre($hook, 'Email', CRM_Utils_Array::value('id', $params), $params);
 
@@ -78,19 +44,23 @@ class CRM_Core_BAO_Email extends CRM_Core_DAO_Email {
       $email->email = $strtolower($email->email);
     }
 
-    /*
-     * since we're setting bulkmail for 1 of this contact's emails, first reset all their other emails to is_bulkmail false
-     *  We shouldn't not set the current email to false even though we
-     *  are about to reset it to avoid contaminating the changelog if logging is enabled
-     * (only 1 email address can have is_bulkmail = true)
-     */
-    if ($email->is_bulkmail != 'null' && !empty($params['contact_id']) && !self::isMultipleBulkMail()) {
+    //
+    // Since we're setting bulkmail for 1 of this contact's emails, first reset
+    // all their other emails to is_bulkmail false. We shouldn't set the current
+    // email to false even though we are about to reset it to avoid
+    // contaminating the changelog if logging is enabled.  (only 1 email
+    // address can have is_bulkmail = true)
+    //
+    // Note setting a the is_bulkmail to '' in $params results in $email->is_bulkmail === 'null'.
+    // @see https://lab.civicrm.org/dev/core/-/issues/2254
+    //
+    if ($email->is_bulkmail == 1 && !empty($params['contact_id']) && !self::isMultipleBulkMail()) {
       $sql = "
 UPDATE civicrm_email
 SET    is_bulkmail = 0
 WHERE  contact_id = {$params['contact_id']}
 ";
-      if ($hook == 'edit') {
+      if ($hook === 'edit') {
         $sql .= " AND id <> {$params['id']}";
       }
       CRM_Core_DAO::executeQuery($sql);
@@ -108,6 +78,20 @@ WHERE  contact_id = {$params['contact_id']}
 
     CRM_Utils_Hook::post($hook, 'Email', $email->id, $email);
     return $email;
+  }
+
+  /**
+   * Takes an associative array and adds email.
+   *
+   * @param array $params
+   *   (reference ) an assoc array of name/value pairs.
+   *
+   * @return object
+   *   CRM_Core_BAO_Email object on success, null otherwise
+   */
+  public static function add(&$params) {
+    CRM_Core_Error::deprecatedFunctionWarning('apiv4 create');
+    return self::create($params);
   }
 
   /**
@@ -151,25 +135,25 @@ LEFT JOIN civicrm_email ON ( civicrm_email.contact_id = civicrm_contact.id )
 LEFT JOIN civicrm_location_type ON ( civicrm_email.location_type_id = civicrm_location_type.id )
 WHERE     civicrm_contact.id = %1
 ORDER BY  civicrm_email.is_primary DESC, email_id ASC ";
-    $params = array(
-      1 => array(
+    $params = [
+      1 => [
         $id,
         'Integer',
-      ),
-    );
+      ],
+    ];
 
-    $emails = $values = array();
+    $emails = $values = [];
     $dao = CRM_Core_DAO::executeQuery($query, $params);
     $count = 1;
     while ($dao->fetch()) {
-      $values = array(
+      $values = [
         'locationType' => $dao->locationType,
         'is_primary' => $dao->is_primary,
         'on_hold' => $dao->on_hold,
         'id' => $dao->email_id,
         'email' => $dao->email,
         'locationTypeId' => $dao->locationTypeId,
-      );
+      ];
 
       if ($updateBlankLocInfo) {
         $emails[$count++] = $values;
@@ -207,24 +191,24 @@ AND   e.id IN (loc.email_id, loc.email_2_id)
 AND   ltype.id = e.location_type_id
 ORDER BY e.is_primary DESC, email_id ASC ";
 
-    $params = array(
-      1 => array(
+    $params = [
+      1 => [
         $entityId,
         'Integer',
-      ),
-    );
+      ],
+    ];
 
-    $emails = array();
+    $emails = [];
     $dao = CRM_Core_DAO::executeQuery($sql, $params);
     while ($dao->fetch()) {
-      $emails[$dao->email_id] = array(
+      $emails[$dao->email_id] = [
         'locationType' => $dao->locationType,
         'is_primary' => $dao->is_primary,
         'on_hold' => $dao->on_hold,
         'id' => $dao->email_id,
         'email' => $dao->email,
         'locationTypeId' => $dao->locationTypeId,
-      );
+      ];
     }
 
     return $emails;
@@ -249,7 +233,7 @@ ORDER BY e.is_primary DESC, email_id ASC ";
 
     //check for update mode
     if ($email->id) {
-      $params = array(1 => array($email->id, 'Integer'));
+      $params = [1 => [$email->id, 'Integer']];
       if ($email->on_hold) {
         $sql = "
 SELECT id
@@ -291,7 +275,7 @@ AND    reset_date IS NULL
    * @return array $domainEmails;
    */
   public static function domainEmails() {
-    $domainEmails = array();
+    $domainEmails = [];
     $domainFrom = (array) CRM_Core_OptionGroup::values('from_email_address');
     foreach (array_keys($domainFrom) as $k) {
       $domainEmail = $domainFrom[$k];
@@ -317,7 +301,7 @@ AND    reset_date IS NULL
 
     $contactFromEmails = [];
     // add logged in user's active email ids
-    $contactID = CRM_Core_Session::singleton()->getLoggedInContactID();
+    $contactID = CRM_Core_Session::getLoggedInContactID();
     if ($contactID) {
       $contactEmails = self::allEmails($contactID);
       $fromDisplayName  = CRM_Core_Session::singleton()->getLoggedInContactDisplayName();
@@ -333,7 +317,7 @@ AND    reset_date IS NULL
         if (!empty($emailVal['is_primary'])) {
           $fromEmailHtml .= ' ' . ts('(preferred)');
         }
-        $contactFromEmails[$fromEmail] = $fromEmailHtml;
+        $contactFromEmails[$emailId] = $fromEmailHtml;
       }
     }
     return CRM_Utils_Array::crmArrayMerge($contactFromEmails, $fromEmailValues);
@@ -355,6 +339,26 @@ AND    reset_date IS NULL
    */
   public static function del($id) {
     return CRM_Contact_BAO_Contact::deleteObjectWithPrimary('Email', $id);
+  }
+
+  /**
+   * Get filters for entity reference fields.
+   *
+   * @return array
+   */
+  public static function getEntityRefFilters() {
+    $contactFields = CRM_Contact_BAO_Contact::getEntityRefFilters();
+    foreach ($contactFields as $index => &$contactField) {
+      if (!empty($contactField['entity'])) {
+        // For now email_getlist can't parse state, country etc.
+        unset($contactFields[$index]);
+      }
+      elseif ($contactField['key'] !== 'contact_id') {
+        $contactField['entity'] = 'Contact';
+        $contactField['key'] = 'contact_id.' . $contactField['key'];
+      }
+    }
+    return $contactFields;
   }
 
 }

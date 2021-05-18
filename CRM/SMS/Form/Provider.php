@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -36,6 +20,11 @@
  */
 class CRM_SMS_Form_Provider extends CRM_Core_Form {
   protected $_id = NULL;
+
+  /**
+   * @var bool
+   */
+  public $submitOnce = TRUE;
 
   public function preProcess() {
 
@@ -65,17 +54,17 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
   public function buildQuickForm() {
     parent::buildQuickForm();
 
-    $this->addButtons(array(
-      array(
+    $this->addButtons([
+      [
         'type' => 'next',
         'name' => $this->_action & CRM_Core_Action::DELETE ? ts('Delete') : ts('Save'),
         'isDefault' => TRUE,
-      ),
-      array(
+      ],
+      [
         'type' => 'cancel',
         'name' => ts('Cancel'),
-      ),
-    ));
+      ],
+    ]);
 
     if ($this->_action & CRM_Core_Action::DELETE) {
       return;
@@ -86,16 +75,16 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
     $providerNames = CRM_Core_OptionGroup::values('sms_provider_name', FALSE, FALSE, FALSE, NULL, 'label');
     $apiTypes = CRM_Core_OptionGroup::values('sms_api_type', FALSE, FALSE, FALSE, NULL, 'label');
 
-    $this->add('select', 'name', ts('Name'), array('' => '- select -') + $providerNames, TRUE);
+    $this->add('select', 'name', ts('Name'), $providerNames, TRUE, ['placeholder' => TRUE]);
 
     $this->add('text', 'title', ts('Title'),
       $attributes['title'], TRUE
     );
 
-    $this->addRule('title', ts('This Title already exists in Database.'), 'objectExists', array(
+    $this->addRule('title', ts('This Title already exists in Database.'), 'objectExists', [
       'CRM_SMS_DAO_Provider',
       $this->_id,
-    ));
+    ]);
 
     $this->add('text', 'username', ts('Username'),
       $attributes['username'], TRUE
@@ -110,7 +99,7 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
     $this->add('text', 'api_url', ts('API Url'), $attributes['api_url'], TRUE);
 
     $this->add('textarea', 'api_params', ts('API Parameters'),
-      "cols=50 rows=6", TRUE
+      ['cols' => 50, 'rows' => 6], TRUE
     );
 
     $this->add('checkbox', 'is_active', ts('Is this provider active?'));
@@ -124,13 +113,13 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
    * @return array
    */
   public function setDefaultValues() {
-    $defaults = array();
+    $defaults = [];
 
     $name = CRM_Utils_Request::retrieve('key', 'String', $this, FALSE, NULL);
     if ($name) {
       $defaults['name'] = $name;
-      $provider = CRM_SMS_Provider::singleton(array('provider' => $name));
-      $defaults['api_url'] = $provider->_apiURL;
+      $provider = CRM_SMS_Provider::singleton(['provider' => $name]);
+      $defaults['api_url'] = $provider->_apiURL ?? '';
     }
 
     if (!$this->_id) {
@@ -159,7 +148,7 @@ class CRM_SMS_Form_Provider extends CRM_Core_Form {
    */
   public function postProcess() {
 
-    CRM_Utils_System::flushCache('CRM_SMS_DAO_Provider');
+    CRM_Utils_System::flushCache();
 
     if ($this->_action & CRM_Core_Action::DELETE) {
       CRM_SMS_BAO_Provider::del($this->_id);

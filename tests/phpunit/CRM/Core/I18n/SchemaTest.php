@@ -1,27 +1,11 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 /**
@@ -35,18 +19,18 @@ class CRM_Core_I18n_SchemaTest extends CiviUnitTestCase {
    * @return array
    */
   public static function translateTables() {
-    $tables = array();
-    $tables[] = array('civicrm_option_group', 'civicrm_option_group_en_US');
-    $tables[] = array('civicrm_events_in_carts', 'civicrm_events_in_carts');
-    $tables[] = array('civicrm_event', 'civicrm_event_en_US');
+    $tables = [];
+    $tables[] = ['civicrm_option_group', 'civicrm_option_group_en_US'];
+    $tables[] = ['civicrm_events_in_carts', 'civicrm_events_in_carts'];
+    $tables[] = ['civicrm_event', 'civicrm_event_en_US'];
     return $tables;
   }
 
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     CRM_Core_I18n_Schema::makeSinglelingual('en_US');
     parent::tearDown();
   }
@@ -56,11 +40,20 @@ class CRM_Core_I18n_SchemaTest extends CiviUnitTestCase {
    * @param string $expectedRewrite
    *
    * @dataProvider translateTables
+   * @throws \CRM_Core_Exception
    */
   public function testI18nSchemaRewrite($table, $expectedRewrite) {
     CRM_Core_I18n_Schema::makeMultilingual('en_US');
+    $domains = $this->callAPISuccess('Domain', 'get')['values'];
+    $this->assertGreaterThan(1, count($domains));
+    foreach ($domains as $domain) {
+      // If the DB is multilingual the locales value must be not-null for all domains
+      // to ensure the db can be accessed (I suspect it must be the same for all locales but
+      // if null then the database layer attempts to access non-existent fields 'label' not label_en_us'.
+      $this->assertEquals('en_US', $domain['locales']);
+    }
     $skip_tests = FALSE;
-    if (in_array($table, array('civicrm_option_group', 'civicrm_event'))) {
+    if (in_array($table, ['civicrm_option_group', 'civicrm_event'])) {
       $skip_tests = TRUE;
     }
     global $dbLocale;
@@ -90,7 +83,7 @@ class CRM_Core_I18n_SchemaTest extends CiviUnitTestCase {
     // Test Currently skipped for civicrm_option_group and civicrm_event due to issues with the regex.
     // Agreed as not a blocker for CRM-20427 as an issue previously.
     if (!$skip_tests) {
-      $query6 = "SELECT " . '"'  . "Fixed the the {$table} ticket" . '"';
+      $query6 = "SELECT " . '"' . "Fixed the the {$table} ticket" . '"';
       $new_query6 = CRM_Core_I18n_Schema::rewriteQuery($query6);
       $this->assertEquals($query6, $new_query6);
     }
@@ -108,6 +101,16 @@ class CRM_Core_I18n_SchemaTest extends CiviUnitTestCase {
       $query9 = 'INSERT INTO ' . "{$table}" . ' (foo, bar) VALUES (123, "' . "Just a {$table} string" . '")';
       $new_query9 = CRM_Core_I18n_Schema::rewriteQuery($query9);
       $this->assertEquals('INSERT INTO ' . "{$expectedRewrite}" . ' (foo, bar) VALUES (123, "' . "Just a {$table} string" . '")', $new_query9);
+    }
+  }
+
+  public function testSchemaBuild() {
+    CRM_Core_I18n_Schema::makeMultilingual('en_US');
+    $inUseCollation = CRM_Core_BAO_SchemaHandler::getInUseCollation();
+    $testCreateTable = CRM_Core_DAO::executeQuery("show create table civicrm_price_set", [], TRUE, NULL, FALSE, FALSE);
+    while ($testCreateTable->fetch()) {
+      $this->assertContains("`title_en_US` varchar(255) COLLATE {$inUseCollation} NOT NULL COMMENT 'Displayed title for the Price Set.'", $testCreateTable->Create_Table);
+      $this->assertContains("`help_pre_en_US` text COLLATE {$inUseCollation} COMMENT 'Description and/or help text to display before fields in form.'", $testCreateTable->Create_Table);
     }
   }
 

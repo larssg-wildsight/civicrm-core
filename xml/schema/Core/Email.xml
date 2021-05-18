@@ -7,12 +7,17 @@
   <comment>Email information for a specific location.</comment>
   <add>1.1</add>
   <log>true</log>
+  <icon>fa-envelope-o</icon>
+  <labelField>email</labelField>
   <field>
     <name>id</name>
     <title>Email ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <comment>Unique Email ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>1.1</add>
   </field>
   <primaryKey>
@@ -21,9 +26,12 @@
   </primaryKey>
   <field>
     <name>contact_id</name>
-    <title>Email Contact</title>
+    <title>Contact ID</title>
     <type>int unsigned</type>
     <comment>FK to Contact ID</comment>
+    <html>
+      <label>Contact</label>
+    </html>
     <add>2.0</add>
   </field>
   <foreignKey>
@@ -76,18 +84,14 @@
   </index>
   <field>
     <name>is_primary</name>
+    <title>Primary email</title>
     <type>boolean</type>
     <default>0</default>
-    <comment>Is this the primary email for this contact and location.</comment>
+    <comment>Is this the primary email address</comment>
     <add>1.1</add>
-  </field>
-  <field>
-    <name>is_primary</name>
-    <title>Is Primary email</title>
-    <type>boolean</type>
-    <default>0</default>
-    <comment>Is this the primary?</comment>
-    <add>2.0</add>
+    <html>
+      <type>Radio</type>
+    </html>
   </field>
   <index>
     <name>index_is_primary</name>
@@ -109,14 +113,18 @@
   </index>
   <field>
     <name>on_hold</name>
+    <title>On Hold</title>
     <export>true</export>
-    <type>boolean</type>
+    <type>int unsigned</type>
     <default>0</default>
     <required>true</required>
-    <comment>Is this address on bounce hold?</comment>
+    <comment>Implicit FK to civicrm_option_value where option_group = email_on_hold.</comment>
+    <pseudoconstant>
+      <callback>CRM_Core_PseudoConstant::emailOnHoldOptions</callback>
+    </pseudoconstant>
     <add>1.1</add>
     <html>
-      <type>CheckBox</type>
+      <type>Select</type>
     </html>
   </field>
   <field>
@@ -133,12 +141,18 @@
     <name>hold_date</name>
     <type>datetime</type>
     <comment>When the address went on bounce hold</comment>
+    <html>
+      <label>Hold Date</label>
+    </html>
     <add>1.1</add>
   </field>
   <field>
     <name>reset_date</name>
     <type>datetime</type>
     <comment>When the address bounce status was last reset</comment>
+    <html>
+      <label>Reset Date</label>
+    </html>
     <add>1.1</add>
   </field>
   <field>
@@ -147,6 +161,9 @@
     <import>true</import>
     <default>NULL</default>
     <comment>Text formatted signature for the email.</comment>
+    <html>
+      <label>Signature Text</label>
+    </html>
     <add>3.2</add>
   </field>
   <field>
@@ -155,6 +172,9 @@
     <import>true</import>
     <default>NULL</default>
     <comment>HTML formatted signature for the email.</comment>
+    <html>
+      <label>Signature HTML</label>
+    </html>
     <add>3.2</add>
   </field>
 </table>

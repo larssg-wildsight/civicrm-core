@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -42,46 +26,35 @@ class CRM_Core_BAO_Phone extends CRM_Core_DAO_Phone {
    *
    * @param array $params
    *
-   * @return object
+   * @return \CRM_Core_DAO_Phone
+   *
    * @throws API_Exception
+   * @throws \CRM_Core_Exception
    */
   public static function create($params) {
     // Ensure mysql phone function exists
     CRM_Core_DAO::checkSqlFunctionsExist();
-
-    if (is_numeric(CRM_Utils_Array::value('is_primary', $params)) ||
-      // if id is set & is_primary isn't we can assume no change
-      empty($params['id'])
-    ) {
-      CRM_Core_BAO_Block::handlePrimary($params, get_class());
-    }
-    $phone = self::add($params);
-
-    return $phone;
+    CRM_Core_BAO_Block::handlePrimary($params, get_class());
+    return self::writeRecord($params);
   }
 
   /**
    * Takes an associative array and adds phone.
+   *
+   * @deprecated use create.
    *
    * @param array $params
    *   (reference ) an assoc array of name/value pairs.
    *
    * @return object
    *   CRM_Core_BAO_Phone object on success, null otherwise
+   *
+   * @throws \API_Exception
+   * @throws \CRM_Core_Exception
    */
-  public static function add(&$params) {
-    // Ensure mysql phone function exists
-    CRM_Core_DAO::checkSqlFunctionsExist();
-
-    $hook = empty($params['id']) ? 'create' : 'edit';
-    CRM_Utils_Hook::pre($hook, 'Phone', CRM_Utils_Array::value('id', $params), $params);
-
-    $phone = new CRM_Core_DAO_Phone();
-    $phone->copyValues($params);
-    $phone->save();
-
-    CRM_Utils_Hook::post($hook, 'Phone', $phone->id, $phone);
-    return $phone;
+  public static function add($params) {
+    CRM_Core_Error::deprecatedFunctionWarning('Use the v4 api');
+    return self::create($params);
   }
 
   /**
@@ -92,6 +65,7 @@ class CRM_Core_BAO_Phone extends CRM_Core_DAO_Phone {
    *
    * @return array
    *   array of phone objects
+   * @throws \CRM_Core_Exception
    */
   public static function &getValues($entityBlock) {
     $getValues = CRM_Core_BAO_Block::getValues('phone', $entityBlock);
@@ -111,14 +85,14 @@ class CRM_Core_BAO_Phone extends CRM_Core_DAO_Phone {
    * @return array
    *   the array of phone ids which are potential numbers
    */
-  public static function allPhones($id, $updateBlankLocInfo = FALSE, $type = NULL, $filters = array()) {
+  public static function allPhones($id, $updateBlankLocInfo = FALSE, $type = NULL, $filters = []) {
     if (!$id) {
       return NULL;
     }
 
     $cond = NULL;
     if ($type) {
-      $phoneTypeId = array_search($type, CRM_Core_PseudoConstant::get('CRM_Core_DAO_Phone', 'phone_type_id'));
+      $phoneTypeId = CRM_Core_PseudoConstant::getKey('CRM_Core_DAO_Phone', 'phone_type_id', $type);
       if ($phoneTypeId) {
         $cond = " AND civicrm_phone.phone_type_id = $phoneTypeId";
       }
@@ -140,25 +114,25 @@ LEFT JOIN civicrm_location_type ON ( civicrm_phone.location_type_id = civicrm_lo
 WHERE     civicrm_contact.id = %1 $cond
 ORDER BY civicrm_phone.is_primary DESC,  phone_id ASC ";
 
-    $params = array(
-      1 => array(
+    $params = [
+      1 => [
         $id,
         'Integer',
-      ),
-    );
+      ],
+    ];
 
-    $numbers = $values = array();
+    $numbers = $values = [];
     $dao = CRM_Core_DAO::executeQuery($query, $params);
     $count = 1;
     while ($dao->fetch()) {
-      $values = array(
+      $values = [
         'locationType' => $dao->locationType,
         'is_primary' => $dao->is_primary,
         'id' => $dao->phone_id,
         'phone' => $dao->phone,
         'locationTypeId' => $dao->locationTypeId,
         'phoneTypeId' => $dao->phoneTypeId,
-      );
+      ];
 
       if ($updateBlankLocInfo) {
         $numbers[$count++] = $values;
@@ -209,22 +183,22 @@ AND   ph.id IN (loc.phone_id, loc.phone_2_id)
 AND   ltype.id = ph.location_type_id
 ORDER BY ph.is_primary DESC, phone_id ASC ";
 
-    $params = array(
-      1 => array(
+    $params = [
+      1 => [
         $entityId,
         'Integer',
-      ),
-    );
-    $numbers = array();
+      ],
+    ];
+    $numbers = [];
     $dao = CRM_Core_DAO::executeQuery($sql, $params);
     while ($dao->fetch()) {
-      $numbers[$dao->phone_id] = array(
+      $numbers[$dao->phone_id] = [
         'locationType' => $dao->locationType,
         'is_primary' => $dao->is_primary,
         'id' => $dao->phone_id,
         'phone' => $dao->phone,
         'locationTypeId' => $dao->locationTypeId,
-      );
+      ];
     }
     return $numbers;
   }
@@ -242,17 +216,17 @@ ORDER BY ph.is_primary DESC, phone_id ASC ";
     // Ensure mysql phone function exists
     CRM_Core_DAO::checkSqlFunctionsExist();
 
-    $tables = array(
+    $tables = [
       'civicrm_phone',
       'civicrm_mapping_field',
       'civicrm_uf_field',
-    );
-    $params = array(
-      1 => array(
+    ];
+    $params = [
+      1 => [
         $optionId,
         'Integer',
-      ),
-    );
+      ],
+    ];
 
     foreach ($tables as $tableName) {
       $query = "UPDATE `{$tableName}` SET `phone_type_id` = NULL WHERE `phone_type_id` = %1";

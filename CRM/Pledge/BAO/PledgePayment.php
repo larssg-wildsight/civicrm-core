@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Pledge_BAO_PledgePayment extends CRM_Pledge_DAO_PledgePayment {
 
@@ -70,10 +54,10 @@ LEFT JOIN civicrm_option_value ON ( civicrm_pledge_payment.status_id = civicrm_o
 WHERE     pledge_id = %1
 ";
 
-    $params[1] = array($pledgeId, 'Integer');
+    $params[1] = [$pledgeId, 'Integer'];
     $payment = CRM_Core_DAO::executeQuery($query, $params);
 
-    $paymentDetails = array();
+    $paymentDetails = [];
     while ($payment->fetch()) {
       $paymentDetails[$payment->id]['scheduled_amount'] = $payment->scheduled_amount;
       $paymentDetails[$payment->id]['scheduled_date'] = $payment->scheduled_date;
@@ -92,18 +76,20 @@ WHERE     pledge_id = %1
   }
 
   /**
+   * Create pledge payments.
+   *
    * @param array $params
    *
-   * @return pledge
+   * @return CRM_Pledge_DAO_PledgePayment
    */
-  public static function create($params) {
+  public static function createMultiple(array $params) {
     $transaction = new CRM_Core_Transaction();
     $overdueStatusID = CRM_Core_PseudoConstant::getKey('CRM_Pledge_BAO_PledgePayment', 'status_id', 'Overdue');
     $pendingStatusId = CRM_Core_PseudoConstant::getKey('CRM_Pledge_BAO_PledgePayment', 'status_id', 'Pending');
-
+    $currency = $params['currency'] ?? CRM_Core_Config::singleton()->defaultCurrency;
     //calculate the scheduled date for every installment
     $now = date('Ymd') . '000000';
-    $statues = $prevScheduledDate = array();
+    $statues = $prevScheduledDate = [];
     $prevScheduledDate[1] = CRM_Utils_Date::processDate($params['scheduled_date']);
 
     if (CRM_Utils_Date::overdue($prevScheduledDate[1], $now)) {
@@ -124,7 +110,7 @@ WHERE     pledge_id = %1
     }
 
     if ($params['installment_amount']) {
-      $params['scheduled_amount'] = $params['installment_amount'];
+      $params['scheduled_amount'] = round($params['installment_amount'], CRM_Utils_Money::getCurrencyPrecision($currency));
     }
     else {
       $params['scheduled_amount'] = round(($params['amount'] / $params['installments']), 2);
@@ -161,40 +147,34 @@ WHERE     pledge_id = %1
   }
 
   /**
-   * Add pledge payment.
+   * Create individual pledge payment.
    *
    * @param array $params
-   *   Associate array of field.
    *
    * @return CRM_Pledge_DAO_PledgePayment
-   *   pledge payment id
+   * @throws \CRM_Core_Exception
    */
-  public static function add($params) {
-    if (!empty($params['id'])) {
-      CRM_Utils_Hook::pre('edit', 'PledgePayment', $params['id'], $params);
-    }
-    else {
-      CRM_Utils_Hook::pre('create', 'PledgePayment', NULL, $params);
-    }
-
-    $payment = new CRM_Pledge_DAO_PledgePayment();
-    $payment->copyValues($params);
-
+  public static function create(array $params): CRM_Pledge_DAO_PledgePayment {
     // set currency for CRM-1496
-    if (!isset($payment->currency)) {
-      $payment->currency = CRM_Core_Config::singleton()->defaultCurrency;
+    if (empty($params['id']) && !isset($params['currency'])) {
+      $params['currency'] = CRM_Core_Config::singleton()->defaultCurrency;
     }
+    return self::writeRecord($params);
+  }
 
-    $result = $payment->save();
-
-    if (!empty($params['id'])) {
-      CRM_Utils_Hook::post('edit', 'PledgePayment', $payment->id, $payment);
-    }
-    else {
-      CRM_Utils_Hook::post('create', 'PledgePayment', $payment->id, $payment);
-    }
-
-    return $result;
+  /**
+   * Add pledge payment.
+   *
+   * @deprecated - use the api which will use create (soon).
+   *
+   * @param array $params
+   *   Fields in line with the database entity.
+   *
+   * @return CRM_Pledge_DAO_PledgePayment
+   * @throws \CRM_Core_Exception
+   */
+  public static function add(array $params): CRM_Pledge_DAO_PledgePayment {
+    return self::create($params);
   }
 
   /**
@@ -306,7 +286,6 @@ WHERE     pledge_id = %1
       $pledgeStatusID = self::calculatePledgeStatus($pledgeID);
       CRM_Core_DAO::setFieldValue('CRM_Pledge_DAO_Pledge', $pledgeID, 'status_id', $pledgeStatusID);
 
-      $payment->free();
     }
 
     $transaction->commit();
@@ -418,12 +397,12 @@ WHERE     pledge_id = %1
           $ScheduledDate = CRM_Utils_Date::format(CRM_Utils_Date::intervalAdd($pledgeFrequencyUnit,
             $pledgeFrequencyInterval, $newDate
           ));
-          $pledgeParams = array(
+          $pledgeParams = [
             'status_id' => array_search('Pending', $allStatus),
             'pledge_id' => $pledgeID,
             'scheduled_amount' => ($pledgeScheduledAmount - $actualAmount),
             'scheduled_date' => $ScheduledDate,
-          );
+          ];
           $payment = self::add($pledgeParams);
           // while editing schedule,  after adding a new pledge payemnt update the scheduled amount of the current payment
           if (!$paymentContributionId) {
@@ -451,7 +430,7 @@ WHERE     pledge_id = %1
  WHERE civicrm_pledge_payment.pledge_id = %1
  AND civicrm_pledge_payment.status_id = 1
  ";
-        $totalPaidParams = array(1 => array($pledgeID, 'Integer'));
+        $totalPaidParams = [1 => [$pledgeID, 'Integer']];
         $totalPaidAmount = CRM_Core_DAO::singleValueQuery($balanceQuery, $totalPaidParams);
         $remainingTotalAmount = ($actualPledgeAmount - $totalPaidAmount);
         if (($pledgeStatusId && $pledgeStatusId == array_search('Completed', $allStatus)) && (($actualAmount > $remainingTotalAmount) || ($actualAmount >= $actualPledgeAmount))) {
@@ -490,10 +469,10 @@ UPDATE civicrm_pledge
 WHERE  civicrm_pledge.id = %2
 ";
 
-    $params = array(
-      1 => array($pledgeStatusID, 'Integer'),
-      2 => array($pledgeID, 'Integer'),
-    );
+    $params = [
+      1 => [$pledgeStatusID, 'Integer'],
+      2 => [$pledgeID, 'Integer'],
+    ];
 
     CRM_Core_DAO::executeQuery($query, $params);
 
@@ -512,7 +491,7 @@ WHERE  civicrm_pledge.id = %2
    *   Next scheduled date as an array
    */
   public static function calculateBaseScheduleDate(&$params) {
-    $date = array();
+    $date = [];
     $scheduled_date = CRM_Utils_Date::processDate($params['scheduled_date']);
     $date['year'] = (int) substr($scheduled_date, 0, 4);
     $date['month'] = (int) substr($scheduled_date, 4, 2);
@@ -568,20 +547,20 @@ WHERE  civicrm_pledge.id = %2
     }
 
     //CRM-18316 - change $basePaymentDate for the end dates of the month eg: 29, 30 or 31.
-    if ($params['frequency_unit'] == 'month' && in_array($params['frequency_day'], array(29, 30, 31))) {
+    if ($params['frequency_unit'] == 'month' && in_array($params['frequency_day'], [29, 30, 31])) {
       $frequency = $params['frequency_day'];
       extract(date_parse($basePaymentDate));
       $lastDayOfMonth = date('t', mktime($hour, $minute, $second, $month + $interval, 1, $year));
       // Take the last day in case the current month is Feb or frequency_day is set to 31.
-      if (in_array($lastDayOfMonth, array(28, 29)) || $frequency == 31) {
+      if (in_array($lastDayOfMonth, [28, 29]) || $frequency == 31) {
         $frequency = 0;
         $interval++;
       }
-      $basePaymentDate = array(
+      $basePaymentDate = [
         'M' => $month,
         'd' => $frequency,
         'Y' => $year,
-      );
+      ];
     }
 
     return CRM_Utils_Date::format(
@@ -613,8 +592,8 @@ WHERE  civicrm_pledge.id = %2
     }
 
     // retrieve all pledge payments for this particular pledge
-    $allPledgePayments = $allStatus = array();
-    $returnProperties = array('status_id');
+    $allPledgePayments = $allStatus = [];
+    $returnProperties = ['status_id'];
     CRM_Core_DAO::commonRetrieveAll('CRM_Pledge_DAO_PledgePayment', 'pledge_id', $pledgeId, $allPledgePayments, $returnProperties);
 
     // build pledge payment statuses
@@ -689,7 +668,7 @@ WHERE  civicrm_pledge_payment.pledge_id = %1
        {$paymentClause}
 ";
 
-    CRM_Core_DAO::executeQuery($query, array(1 => array($pledgeId, 'Integer')));
+    CRM_Core_DAO::executeQuery($query, [1 => [$pledgeId, 'Integer']]);
   }
 
   /**
@@ -741,20 +720,20 @@ ORDER BY civicrm_pledge_payment.scheduled_date ASC
 LIMIT 0, %2
 ";
 
-    $params[1] = array($pledgeID, 'Integer');
-    $params[2] = array($limit, 'Integer');
+    $params[1] = [$pledgeID, 'Integer'];
+    $params[2] = [$limit, 'Integer'];
     $payment = CRM_Core_DAO::executeQuery($query, $params);
     $count = 1;
-    $paymentDetails = array();
+    $paymentDetails = [];
     while ($payment->fetch()) {
-      $paymentDetails[] = array(
+      $paymentDetails[] = [
         'id' => $payment->id,
         'amount' => $payment->amount,
         'currency' => $payment->currency,
         'schedule_date' => $payment->scheduled_date,
         'financial_type_id' => $payment->financial_type_id,
         'count' => $count,
-      );
+      ];
       $count++;
     }
     return end($paymentDetails);
@@ -778,7 +757,7 @@ FROM  civicrm_pledge_payment
 WHERE civicrm_pledge_payment.contribution_id = {$paymentContributionId}
 ";
       $paymentsAffected = CRM_Core_DAO::executeQuery($query);
-      $paymentIDs = array();
+      $paymentIDs = [];
       while ($paymentsAffected->fetch()) {
         $paymentIDs[] = $paymentsAffected->id;
       }
@@ -814,12 +793,12 @@ WHERE civicrm_pledge_payment.contribution_id = {$paymentContributionId}
       $date['day'] = (int) substr($scheduled_date, 6, 2);
       $newDate = date('YmdHis', mktime(0, 0, 0, $date['month'], $date['day'], $date['year']));
       $ScheduledDate = CRM_Utils_Date::format(CRM_Utils_Date::intervalAdd($pledgeFrequencyUnit, $pledgeFrequencyInterval, $newDate));
-      $pledgeParams = array(
+      $pledgeParams = [
         'status_id' => array_search('Pending', $allStatus),
         'pledge_id' => $pledgeID,
         'scheduled_amount' => $pledgeScheduledAmount,
         'scheduled_date' => $ScheduledDate,
-      );
+      ];
       $payment = self::add($pledgeParams);
     }
     else {
@@ -854,7 +833,7 @@ WHERE civicrm_pledge_payment.contribution_id = {$paymentContributionId}
         elseif (($actualAmount > $pledgeScheduledAmount) && (($actualAmount - $pledgeScheduledAmount) >= $nextPledgeInstallmentDue['amount'])) {
           // here the actual amount is greater than expected and also greater than the next installment amount, so update the next installment as complete and again add it to next subsequent pending payment
           // set the actual amount of the next pending to '0', set contribution Id to current contribution Id and status as completed
-          $paymentId = array($nextPledgeInstallmentDue['id']);
+          $paymentId = [$nextPledgeInstallmentDue['id']];
           self::updatePledgePayments($pledgeID, array_search('Completed', $allStatus), $paymentId, 0, $paymentContributionId);
           CRM_Core_DAO::setFieldValue('CRM_Pledge_DAO_PledgePayment', $nextPledgeInstallmentDue['id'], 'scheduled_amount', 0, 'id');
           if (!$paymentContributionId) {
@@ -892,11 +871,11 @@ WHERE civicrm_pledge_payment.contribution_id = {$paymentContributionId}
    *
    * @return array|bool
    */
-  public static function buildOptions($fieldName, $context = NULL, $props = array()) {
+  public static function buildOptions($fieldName, $context = NULL, $props = []) {
     $result = parent::buildOptions($fieldName, $context, $props);
     if ($fieldName == 'status_id') {
       $result = CRM_Pledge_BAO_Pledge::buildOptions($fieldName, $context, $props);
-      $result = array_diff($result, array('Failed', 'In Progress'));
+      $result = array_diff($result, ['Failed', 'In Progress']);
     }
     return $result;
   }

@@ -14,7 +14,8 @@ class CRM_Utils_HttpClientTest extends CiviUnitTestCase {
   const SELF_SIGNED_HTTPS_REGEX = '/This is httpclienttest-selfsign\./';
 
   /**
-   * @var string path to which we can store temp file
+   * @var string
+   * Path to which we can store temp file
    */
   protected $tmpFile;
 
@@ -23,20 +24,20 @@ class CRM_Utils_HttpClientTest extends CiviUnitTestCase {
    */
   protected $client;
 
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->tmpFile = $this->createTempDir() . '/example.txt';
 
-    $result = civicrm_api('Setting', 'create', array(
+    $result = civicrm_api('Setting', 'create', [
       'version' => 3,
       'verifySSL' => TRUE,
-    ));
+    ]);
     $this->assertAPISuccess($result);
     $this->client = new CRM_Utils_HttpClient();
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     CRM_Core_DAO::executeQuery("DELETE FROM civicrm_setting WHERE name = 'verifySSL'");
     CRM_Core_Config::singleton(TRUE);
     parent::tearDown();
@@ -61,10 +62,10 @@ class CRM_Utils_HttpClientTest extends CiviUnitTestCase {
   }
 
   public function testFetchHttps_invalid_noVerify() {
-    $result = civicrm_api('Setting', 'create', array(
+    $result = civicrm_api('Setting', 'create', [
       'version' => 3,
       'verifySSL' => FALSE,
-    ));
+    ]);
     $this->assertAPISuccess($result);
 
     $result = $this->client->fetch(self::SELF_SIGNED_HTTPS_URL, $this->tmpFile);
@@ -96,10 +97,10 @@ class CRM_Utils_HttpClientTest extends CiviUnitTestCase {
   }
 
   public function testGetHttps_invalid_noVerify() {
-    $result = civicrm_api('Setting', 'create', array(
+    $result = civicrm_api('Setting', 'create', [
       'version' => 3,
       'verifySSL' => FALSE,
-    ));
+    ]);
     $this->assertAPISuccess($result);
 
     list($status, $data) = $this->client->get(self::SELF_SIGNED_HTTPS_URL);

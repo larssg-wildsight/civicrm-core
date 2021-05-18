@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {if $action & 1024}
@@ -39,13 +23,13 @@
   {* Show link to Tell a Friend (CRM-2153) *}
   {if $friendText}
     <div id="tell-a-friend" class="crm-section friend_link-section">
-      <a href="{$friendURL}" title="{$friendText|escape:'html'}" class="button"><span>&raquo; {$friendText}</span></a>
+      <a href="{$friendURL}" title="{$friendText|escape:'html'}" class="button"><span><i class="crm-i fa-chevron-right" aria-hidden="true"></i> {$friendText}</span></a>
     </div>{if !$linkText}<br /><br />{/if}
   {/if}
   {* Add button for donor to create their own Personal Campaign page *}
   {if $linkText}
     <div class="crm-section create_pcp_link-section">
-      <a href="{$linkTextUrl}" title="{$linkText|escape:'html'}" class="button"><span>&raquo; {$linkText}</span></a>
+      <a href="{$linkTextUrl}" title="{$linkText|escape:'html'}" class="button"><span><i class="crm-i fa-chevron-right" aria-hidden="true"></i> {$linkText}</span></a>
     </div><br /><br />
   {/if}
 
@@ -63,7 +47,7 @@
         </div>
       {/if}
     {elseif $isPendingOutcome}
-      <div>{ts 1=$paymentProcessor.name}Your contribution has been submitted to %1 for processing. Please print this page for your records.{/ts}</div>
+      <div>{ts 1=$paymentProcessor.name}Your contribution has been submitted to %1 for processing.{/ts}</div>
         {if $is_email_receipt}
       <div>
         {if $onBehalfEmail AND ($onBehalfEmail neq $email)}
@@ -74,7 +58,7 @@
       </div>
     {/if}
   {else}
-    <div>{ts}Your transaction has been processed successfully. Please print this page for your records.{/ts}</div>
+    <div>{ts}Your transaction has been processed successfully.{/ts}</div>
       {if $is_email_receipt}
         <div>
           {if $onBehalfEmail AND ($onBehalfEmail neq $email)}
@@ -155,7 +139,16 @@
                   {if $frequency_interval > 1}
                     <p><strong>{ts 1=$frequency_interval 2=$frequency_unit}This recurring contribution will be automatically processed every %1 %2s.{/ts}</strong></p>
                   {else}
-                    <p><strong>{ts 1=$frequency_unit}This recurring contribution will be automatically processed every %1.{/ts}</strong></p>
+                    {* dev/translation#32 All 'every %1' strings are incorrectly using ts, but focusing on the most important one until we find a better fix. *}
+                    {if $frequency_unit eq 'day'}
+                      <p><strong>{ts}This contribution will be automatically processed every day.{/ts}</strong></p>
+                    {elseif $frequency_unit eq 'week'}
+                      <p><strong>{ts}This contribution will be automatically processed every week.{/ts}</strong></p>
+                    {elseif $frequency_unit eq 'month'}
+                      <p><strong>{ts}This contribution will be automatically processed every month.{/ts}</strong></p>
+                    {elseif $frequency_unit eq 'year'}
+                      <p><strong>{ts}This contribution will be automatically processed every year.{/ts}</strong></p>
+                    {/if}
                   {/if}
                 {/if}
                   <p>
@@ -188,13 +181,13 @@
     </div>
   {/if}
 
-  {if $onbehalfProfile|@count}
+  {if $onbehalfProfile && $onbehalfProfile|@count}
     <div class="crm-group onBehalf_display-group label-left crm-profile-view">
       {include file="CRM/UF/Form/Block.tpl" fields=$onbehalfProfile prefix='onbehalf'}
      </div>
   {/if}
 
-  {if $honoreeProfileFields|@count}
+  {if $honoreeProfileFields && $honoreeProfileFields|@count}
     <div class="crm-group honor_block-group">
       <div class="header-dark">
         {$soft_credit_type}

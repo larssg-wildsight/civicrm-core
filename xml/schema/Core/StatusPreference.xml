@@ -12,6 +12,9 @@
     <title>Status Preference ID</title>
     <required>true</required>
     <comment>Unique Status Preference ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>4.7</add>
   </field>
   <primaryKey>
@@ -20,7 +23,7 @@
   </primaryKey>
   <field>
     <name>domain_id</name>
-    <title>Setting Domain</title>
+    <title>Domain ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <pseudoconstant>
@@ -29,6 +32,9 @@
       <labelColumn>name</labelColumn>
     </pseudoconstant>
     <comment>Which Domain is this Status Preference for</comment>
+    <html>
+      <label>Domain</label>
+    </html>
     <add>4.7</add>
   </field>
   <foreignKey>
@@ -88,5 +94,13 @@
     <length>255</length>
     <comment>These values are per-check, and can't be compared across checks.</comment>
     <add>4.7</add>
+  </field>
+  <field>
+    <name>is_active</name>
+    <title>Check Is Active</title>
+    <type>boolean</type>
+    <default>1</default>
+    <comment>Is this status check active?</comment>
+    <add>5.19</add>
   </field>
 </table>

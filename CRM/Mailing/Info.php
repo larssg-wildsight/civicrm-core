@@ -1,27 +1,11 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
@@ -31,28 +15,125 @@
  * abstract class.
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Mailing_Info extends CRM_Core_Component_Info {
 
   /**
+   * @var string
    * @inheritDoc
    */
   protected $keyword = 'mailing';
 
+  /**
+   * @return array
+   */
+  public static function createAngularSettings():array {
+    $reportIds = [];
+    $reportTypes = ['detail', 'opened', 'bounce', 'clicks'];
+    foreach ($reportTypes as $report) {
+      $rptResult = civicrm_api3('ReportInstance', 'get', [
+        'sequential' => 1,
+        'report_id' => 'mailing/' . $report,
+      ]);
+      if (!empty($rptResult['values'])) {
+        $reportIds[$report] = $rptResult['values'][0]['id'];
+      }
+    }
+
+    $config = CRM_Core_Config::singleton();
+    $session = CRM_Core_Session::singleton();
+    $contactID = $session->get('userID');
+
+    // Generic params.
+    $params = [
+      'options' => ['limit' => 0],
+      'sequential' => 1,
+    ];
+    $groupNames = civicrm_api3('Group', 'get', $params + [
+      'is_active' => 1,
+      'check_permissions' => TRUE,
+      'return' => ['title', 'visibility', 'group_type', 'is_hidden'],
+    ]);
+    $headerfooterList = civicrm_api3('MailingComponent', 'get', $params + [
+      'is_active' => 1,
+      'return' => [
+        'name',
+        'component_type',
+        'is_default',
+        'body_html',
+        'body_text',
+      ],
+    ]);
+
+    $emailAdd = civicrm_api3('Email', 'get', [
+      'sequential' => 1,
+      'return' => "email",
+      'contact_id' => $contactID,
+    ]);
+
+    $mesTemplate = civicrm_api3('MessageTemplate', 'get', $params + [
+      'sequential' => 1,
+      'is_active' => 1,
+      'return' => ["id", "msg_title"],
+      'workflow_id' => ['IS NULL' => ""],
+    ]);
+    $mailTokens = civicrm_api3('Mailing', 'gettokens', [
+      'entity' => ['contact', 'mailing'],
+      'sequential' => 1,
+    ]);
+    $fromAddress = civicrm_api3('OptionValue', 'get', $params + [
+      'option_group_id' => "from_email_address",
+      'domain_id' => CRM_Core_Config::domainID(),
+    ]);
+    $enabledLanguages = CRM_Core_I18n::languages(TRUE);
+    $isMultiLingual = (count($enabledLanguages) > 1);
+    // FlexMailer is a refactoring of CiviMail which provides new hooks/APIs/docs. If the sysadmin has opted to enable it, then use that instead of CiviMail.
+    $requiredTokens = defined('CIVICRM_FLEXMAILER_HACK_REQUIRED_TOKENS') ? Civi\Core\Resolver::singleton()
+      ->call(CIVICRM_FLEXMAILER_HACK_REQUIRED_TOKENS,
+        []) : CRM_Utils_Token::getRequiredTokens();
+    $crmMailingSettings = [
+      'templateTypes' => CRM_Mailing_BAO_Mailing::getTemplateTypes(),
+      'civiMails' => [],
+      'campaignEnabled' => in_array('CiviCampaign', $config->enableComponents),
+      'groupNames' => [],
+      // @todo this is not used in core. Remove once Mosaico no longer depends on it.
+      'testGroupNames' => $groupNames['values'],
+      'headerfooterList' => $headerfooterList['values'],
+      'mesTemplate' => $mesTemplate['values'],
+      'emailAdd' => $emailAdd['values'],
+      'mailTokens' => $mailTokens['values'],
+      'contactid' => $contactID,
+      'requiredTokens' => $requiredTokens,
+      'enableReplyTo' => (int) Civi::settings()->get('replyTo'),
+      'disableMandatoryTokensCheck' => (int) Civi::settings()
+        ->get('disable_mandatory_tokens_check'),
+      'fromAddress' => $fromAddress['values'],
+      'defaultTestEmail' => civicrm_api3('Contact', 'getvalue', [
+        'id' => 'user_contact_id',
+        'return' => 'email',
+      ]),
+      'visibility' => CRM_Utils_Array::makeNonAssociative(CRM_Core_SelectValues::groupVisibility()),
+      'workflowEnabled' => CRM_Mailing_Info::workflowEnabled(),
+      'reportIds' => $reportIds,
+      'enabledLanguages' => $enabledLanguages,
+      'isMultiLingual' => $isMultiLingual,
+    ];
+    return $crmMailingSettings;
+  }
 
   /**
    * @inheritDoc
    * @return array
    */
   public function getInfo() {
-    return array(
+    return [
       'name' => 'CiviMail',
       'translatedName' => ts('CiviMail'),
       'title' => ts('CiviCRM Mailing Engine'),
       'search' => 1,
       'showActivitiesInCore' => 1,
-    );
+    ];
   }
 
   /**
@@ -69,107 +150,13 @@ class CRM_Mailing_Info extends CRM_Core_Component_Info {
       && !CRM_Core_Permission::check('schedule mailings')
       && !CRM_Core_Permission::check('approve mailings')
     ) {
-      return array();
+      return [];
     }
     global $civicrm_root;
 
-    $reportIds = array();
-    $reportTypes = array('detail', 'opened', 'bounce', 'clicks');
-    foreach ($reportTypes as $report) {
-      $result = civicrm_api3('ReportInstance', 'get', array(
-        'sequential' => 1,
-        'report_id' => 'mailing/' . $report));
-      if (!empty($result['values'])) {
-        $reportIds[$report] = $result['values'][0]['id'];
-      }
-    }
-    $result = array();
+    $result = [];
     $result['crmMailing'] = include "$civicrm_root/ang/crmMailing.ang.php";
     $result['crmMailingAB'] = include "$civicrm_root/ang/crmMailingAB.ang.php";
-    $result['crmD3'] = include "$civicrm_root/ang/crmD3.ang.php";
-
-    $config = CRM_Core_Config::singleton();
-    $session = CRM_Core_Session::singleton();
-    $contactID = $session->get('userID');
-
-    // Generic params.
-    $params = array(
-      'options' => array('limit' => 0),
-      'sequential' => 1,
-    );
-    $groupNames = civicrm_api3('Group', 'get', $params + array(
-      'is_active' => 1,
-      'check_permissions' => TRUE,
-      'return' => array('title', 'visibility', 'group_type', 'is_hidden'),
-    ));
-    $headerfooterList = civicrm_api3('MailingComponent', 'get', $params + array(
-      'is_active' => 1,
-      'return' => array('name', 'component_type', 'is_default', 'body_html', 'body_text'),
-    ));
-
-    $emailAdd = civicrm_api3('Email', 'get', array(
-      'sequential' => 1,
-      'return' => "email",
-      'contact_id' => $contactID,
-    ));
-
-    $mesTemplate = civicrm_api3('MessageTemplate', 'get', $params + array(
-      'sequential' => 1,
-      'is_active' => 1,
-      'return' => array("id", "msg_title"),
-      'workflow_id' => array('IS NULL' => ""),
-    ));
-    $mailTokens = civicrm_api3('Mailing', 'gettokens', array(
-      'entity' => array('contact', 'mailing'),
-      'sequential' => 1,
-    ));
-    $fromAddress = civicrm_api3('OptionValue', 'get', $params + array(
-      'option_group_id' => "from_email_address",
-      'domain_id' => CRM_Core_Config::domainID(),
-    ));
-    $enabledLanguages = CRM_Core_I18n::languages(TRUE);
-    $isMultiLingual = (count($enabledLanguages) > 1);
-    // FlexMailer is a refactoring of CiviMail which provides new hooks/APIs/docs. If the sysadmin has opted to enable it, then use that instead of CiviMail.
-    $requiredTokens = defined('CIVICRM_FLEXMAILER_HACK_REQUIRED_TOKENS') ? Civi\Core\Resolver::singleton()->call(CIVICRM_FLEXMAILER_HACK_REQUIRED_TOKENS, array()) : CRM_Utils_Token::getRequiredTokens();
-    CRM_Core_Resources::singleton()
-      ->addSetting(array(
-        'crmMailing' => array(
-          'templateTypes' => CRM_Mailing_BAO_Mailing::getTemplateTypes(),
-          'civiMails' => array(),
-          'campaignEnabled' => in_array('CiviCampaign', $config->enableComponents),
-          'groupNames' => array(),
-          // @todo this is not used in core. Remove once Mosaico no longer depends on it.
-          'testGroupNames' => $groupNames['values'],
-          'headerfooterList' => $headerfooterList['values'],
-          'mesTemplate' => $mesTemplate['values'],
-          'emailAdd' => $emailAdd['values'],
-          'mailTokens' => $mailTokens['values'],
-          'contactid' => $contactID,
-          'requiredTokens' => $requiredTokens,
-          'enableReplyTo' => (int) Civi::settings()->get('replyTo'),
-          'disableMandatoryTokensCheck' => (int) Civi::settings()->get('disable_mandatory_tokens_check'),
-          'fromAddress' => $fromAddress['values'],
-          'defaultTestEmail' => civicrm_api3('Contact', 'getvalue', array(
-              'id' => 'user_contact_id',
-              'return' => 'email',
-            )),
-          'visibility' => CRM_Utils_Array::makeNonAssociative(CRM_Core_SelectValues::groupVisibility()),
-          'workflowEnabled' => CRM_Mailing_Info::workflowEnabled(),
-          'reportIds' => $reportIds,
-          'enabledLanguages' => $enabledLanguages,
-          'isMultiLingual' => $isMultiLingual,
-        ),
-      ))
-      ->addPermissions(array(
-        'view all contacts',
-        'edit all contacts',
-        'access CiviMail',
-        'create mailings',
-        'schedule mailings',
-        'approve mailings',
-        'delete in CiviMail',
-        'edit message templates',
-      ));
 
     return $result;
   }
@@ -193,9 +180,7 @@ class CRM_Mailing_Info extends CRM_Core_Component_Info {
 
     $enableWorkflow = Civi::settings()->get('civimail_workflow');
 
-    return ($enableWorkflow &&
-      $config->userSystem->is_drupal
-    ) ? TRUE : FALSE;
+    return $enableWorkflow && $config->userSystem->is_drupal;
   }
 
   /**
@@ -207,33 +192,33 @@ class CRM_Mailing_Info extends CRM_Core_Component_Info {
    * @return array
    */
   public function getPermissions($getAllUnconditionally = FALSE, $descriptions = FALSE) {
-    $permissions = array(
-      'access CiviMail' => array(
+    $permissions = [
+      'access CiviMail' => [
         ts('access CiviMail'),
-      ),
-      'access CiviMail subscribe/unsubscribe pages' => array(
+      ],
+      'access CiviMail subscribe/unsubscribe pages' => [
         ts('access CiviMail subscribe/unsubscribe pages'),
         ts('Subscribe/unsubscribe from mailing list group'),
-      ),
-      'delete in CiviMail' => array(
+      ],
+      'delete in CiviMail' => [
         ts('delete in CiviMail'),
         ts('Delete Mailing'),
-      ),
-      'view public CiviMail content' => array(
+      ],
+      'view public CiviMail content' => [
         ts('view public CiviMail content'),
-      ),
-    );
+      ],
+    ];
 
     if (self::workflowEnabled() || $getAllUnconditionally) {
-      $permissions['create mailings'] = array(
+      $permissions['create mailings'] = [
         ts('create mailings'),
-      );
-      $permissions['schedule mailings'] = array(
+      ];
+      $permissions['schedule mailings'] = [
         ts('schedule mailings'),
-      );
-      $permissions['approve mailings'] = array(
+      ];
+      $permissions['approve mailings'] = [
         ts('approve mailings'),
-      );
+      ];
     }
 
     if (!$descriptions) {
@@ -244,7 +229,6 @@ class CRM_Mailing_Info extends CRM_Core_Component_Info {
 
     return $permissions;
   }
-
 
   /**
    * @inheritDoc
@@ -268,12 +252,20 @@ class CRM_Mailing_Info extends CRM_Core_Component_Info {
    * @return array
    */
   public function registerTab() {
-    return array(
+    return [
       'title' => ts('Mailings'),
       'id' => 'mailing',
       'url' => 'mailing',
       'weight' => 45,
-    );
+    ];
+  }
+
+  /**
+   * @inheritDoc
+   * @return string
+   */
+  public function getIcon() {
+    return 'crm-i fa-envelope-o';
   }
 
   /**
@@ -281,10 +273,10 @@ class CRM_Mailing_Info extends CRM_Core_Component_Info {
    * @return array
    */
   public function registerAdvancedSearchPane() {
-    return array(
+    return [
       'title' => ts('Mailings'),
       'weight' => 20,
-    );
+    ];
   }
 
   /**

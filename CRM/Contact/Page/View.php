@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -39,28 +23,28 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
   /**
    * The id of the object being viewed (note/relationship etc)
    *
-   * @int
+   * @var int
    */
   protected $_id;
 
   /**
    * The contact id of the contact being viewed
    *
-   * @int
+   * @var int
    */
   protected $_contactId;
 
   /**
    * The action that we are performing
    *
-   * @string
+   * @var string
    */
   protected $_action;
 
   /**
    * The permission we have on this contact
    *
-   * @string
+   * @var string
    */
   protected $_permission;
 
@@ -101,7 +85,7 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
     // ensure that the id does exist
     if (CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $this->_contactId, 'id') != $this->_contactId) {
       CRM_Core_Error::statusBounce(
-        ts('A Contact with that ID does not exist: %1', array(1 => $this->_contactId)),
+        ts('A Contact with that ID does not exist: %1', [1 => $this->_contactId]),
         CRM_Utils_System::url('civicrm/dashboard', 'reset=1')
       );
     }
@@ -109,15 +93,15 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
     $this->assign('contactId', $this->_contactId);
 
     // see if we can get prev/next positions from qfKey
-    $navContacts = array(
+    $navContacts = [
       'prevContactID' => NULL,
       'prevContactName' => NULL,
       'nextContactID' => NULL,
       'nextContactName' => NULL,
       'nextPrevError' => 0,
-    );
+    ];
     if ($qfKey) {
-      $pos = CRM_Core_BAO_PrevNextCache::getPositions("civicrm search $qfKey",
+      $pos = Civi::service('prevnext')->getPositions("civicrm search $qfKey",
         $this->_contactId,
         $this->_contactId
       );
@@ -135,7 +119,7 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
         $found = TRUE;
       }
 
-      $context = CRM_Utils_Array::value('context', $_GET);
+      $context = $_GET['context'] ?? NULL;
       if (!$found) {
         // seems like we did not find any contacts
         // maybe due to bug CRM-9096
@@ -146,18 +130,18 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
       }
       elseif ($context) {
         $this->assign('context', $context);
-        CRM_Utils_System::appendBreadCrumb(array(
-          array(
+        CRM_Utils_System::appendBreadCrumb([
+          [
             'title' => ts('Search Results'),
-            'url' => CRM_Utils_System::url("civicrm/contact/search/$context", array('qfKey' => $qfKey)),
-          ),
-        ));
+            'url' => CRM_Utils_System::url("civicrm/contact/search/$context", ['qfKey' => $qfKey]),
+          ],
+        ]);
       }
     }
     $this->assign($navContacts);
 
     $path = CRM_Utils_System::url('civicrm/contact/view', 'reset=1&cid=' . $this->_contactId);
-    CRM_Utils_System::appendBreadCrumb(array(array('title' => ts('View Contact'), 'url' => $path)));
+    CRM_Utils_System::appendBreadCrumb([['title' => ts('View Contact'), 'url' => $path]]);
 
     if ($image_URL = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $this->_contactId, 'image_URL')) {
       $this->assign("imageURL", CRM_Utils_File::getImageURL($image_URL));
@@ -184,11 +168,11 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
     // add to recently viewed block
     $isDeleted = (bool) CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $this->_contactId, 'is_deleted');
 
-    $recentOther = array(
+    $recentOther = [
       'imageUrl' => $contactImageUrl,
       'subtype' => $contactSubtype,
       'isDeleted' => $isDeleted,
-    );
+    ];
 
     if (CRM_Contact_BAO_Contact_Permission::allow($this->_contactId, CRM_Core_Permission::EDIT)) {
       $recentOther['editUrl'] = CRM_Utils_System::url('civicrm/contact/add', "reset=1&action=update&cid={$this->_contactId}");
@@ -306,14 +290,14 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
    */
   public static function setTitle($contactId, $isDeleted = FALSE) {
     static $contactDetails;
-    $displayName = $contactImage = NULL;
+    $contactImage = NULL;
     if (!isset($contactDetails[$contactId])) {
       list($displayName, $contactImage) = self::getContactDetails($contactId);
-      $contactDetails[$contactId] = array(
+      $contactDetails[$contactId] = [
         'displayName' => $displayName,
         'contactImage' => $contactImage,
         'isDeceased' => (bool) CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $contactId, 'is_deceased'),
-      );
+      ];
     }
     else {
       $displayName = $contactDetails[$contactId]['displayName'];
@@ -323,10 +307,25 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
     // set page title
     $title = "{$contactImage} {$displayName}";
     if ($contactDetails[$contactId]['isDeceased']) {
-      $title .= '  <span class="crm-contact-deceased">(deceased)</span>';
+      $title .= '  <span class="crm-contact-deceased">(' . ts('deceased') . ')</span>';
     }
     if ($isDeleted) {
       $title = "<del>{$title}</del>";
+      try {
+        $mergedTo = civicrm_api3('Contact', 'getmergedto', ['contact_id' => $contactId, 'api.Contact.get' => ['return' => 'display_name']]);
+      }
+      catch (CiviCRM_API3_Exception $e) {
+        CRM_Core_Session::singleton()->setStatus(ts('This contact was deleted during a merge operation. The contact it was merged into cannot be found and may have been deleted.'));
+        $mergedTo = ['count' => 0];
+      }
+      if ($mergedTo['count']) {
+        $mergedToContactID = $mergedTo['id'];
+        $mergedToDisplayName = $mergedTo['values'][$mergedToContactID]['api.Contact.get']['values'][0]['display_name'];
+        $title .= ' ' . ts('(This contact has been merged to <a href="%1">%2</a>)', [
+          1 => CRM_Utils_System::url('civicrm/contact/view', ['reset' => 1, 'cid' => $mergedToContactID]),
+          2 => $mergedToDisplayName,
+        ]);
+      }
     }
 
     // Inline-edit places its own title on the page
@@ -361,7 +360,7 @@ class CRM_Contact_Page_View extends CRM_Core_Page {
     }
 
     // See if other modules want to add links to the activtity bar
-    $hookLinks = array();
+    $hookLinks = [];
     CRM_Utils_Hook::links('view.contact.activity',
       'Contact',
       $cid,

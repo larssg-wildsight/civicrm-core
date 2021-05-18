@@ -1,14 +1,12 @@
-{contact.email_greeting},
-
+{assign var="greeting" value="{contact.email_greeting}"}{if $greeting}{$greeting},{/if}
 {if $event.confirm_email_text AND (not $isOnWaitlist AND not $isRequireApproval)}
 {$event.confirm_email_text}
 
 {else}
-  {ts}Thank you for your participation.{/ts}
-  {if $participant_status}{ts 1=$participant_status}This letter is a confirmation that your registration has been received and your status has been updated to %1.{/ts}
-  {else}{if $isOnWaitlist}{ts}This letter is a confirmation that your registration has been received and your status has been updated to waitlisted.{/ts}{else}{ts}This letter is a confirmation that your registration has been received and your status has been updated to registered.{/ts}{/if}
-  {/if}.
-
+  {ts}Thank you for your registration.{/ts}
+  {if $participant_status}{ts 1=$participant_status}This is a confirmation that your registration has been received and your status has been updated to %1.{/ts}
+  {else}{if $isOnWaitlist}{ts}This is a confirmation that your registration has been received and your status has been updated to waitlisted.{/ts}{else}{ts}This is a confirmation that your registration has been received and your status has been updated to registered.{/ts}{/if}
+  {/if}
 {/if}
 
 {if $isOnWaitlist}
@@ -39,9 +37,6 @@
 {$pay_later_receipt}
 ==========================================================={if $pricesetFieldsCount }===================={/if}
 
-{else}
-
-{ts}Please print this confirmation for your records.{/ts}
 {/if}
 
 
@@ -101,7 +96,7 @@
 {if $payer.name}
 You were registered by: {$payer.name}
 {/if}
-{if $event.is_monetary} {* This section for Paid events only.*}
+{if $event.is_monetary and not $isRequireApproval} {* This section for Paid events only.*}
 
 ==========================================================={if $pricesetFieldsCount }===================={/if}
 
@@ -204,7 +199,7 @@ You were registered by: {$payer.name}
 {if $checkNumber}
 {ts}Check Number{/ts}: {$checkNumber}
 {/if}
-{if $contributeMode ne 'notify' and !$isAmountzero and (!$is_pay_later or $isBillingAddressRequiredForPayLater) and !$isOnWaitlist and !$isRequireApproval}
+{if $billingName}
 
 ==========================================================={if $pricesetFieldsCount }===================={/if}
 
@@ -216,7 +211,7 @@ You were registered by: {$payer.name}
 {$address}
 {/if}
 
-{if $contributeMode eq 'direct' and !$isAmountzero and !$is_pay_later and !$isOnWaitlist and !$isRequireApproval}
+{if $credit_card_type}
 ==========================================================={if $pricesetFieldsCount }===================={/if}
 
 {ts}Credit Card Information{/ts}
@@ -282,21 +277,9 @@ You were registered by: {$payer.name}
 {/foreach}
 {/foreach}
 {/if}
-{if $customGroup}
-{foreach from=$customGroup item=value key=customName}
-=========================================================={if $pricesetFieldsCount }===================={/if}
-
-{$customName}
-=========================================================={if $pricesetFieldsCount }===================={/if}
-
-{foreach from=$value item=v key=n}
-{$n}: {$v}
-{/foreach}
-{/foreach}
-{/if}
 
 {if $event.allow_selfcancelxfer }
-{ts 1=$event.selfcancelxfer_time}You may transfer your registration to another participant or cancel your registration up to %1 hours before the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
+{ts 1=$selfcancelxfer_time 2=$selfservice_preposition}You may transfer your registration to another participant or cancel your registration up to %1 hours %2 the event.{/ts} {if $totalAmount}{ts}Cancellations are not refundable.{/ts}{/if}
    {capture assign=selfService}{crmURL p='civicrm/event/selfsvcupdate' q="reset=1&pid=`$participant.id`&{contact.checksum}"  h=0 a=1 fe=1}{/capture}
 {ts}Transfer or cancel your registration:{/ts} {$selfService}
 {/if}

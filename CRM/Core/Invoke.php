@@ -1,27 +1,11 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
@@ -31,7 +15,7 @@
  * Serves as a wrapper between the UserFrameWork and Core CRM
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Core_Invoke {
 
@@ -71,15 +55,16 @@ class CRM_Core_Invoke {
       return NULL;
     }
     // CRM-15901: Turn off PHP errors display for all ajax calls
-    if (CRM_Utils_Array::value(1, $args) == 'ajax' || CRM_Utils_Array::value('snippet', $_REQUEST)) {
+    if (CRM_Utils_Array::value(1, $args) == 'ajax' || !empty($_REQUEST['snippet'])) {
       ini_set('display_errors', 0);
     }
 
     if (!defined('CIVICRM_SYMFONY_PATH')) {
       // Traditional Civi invocation path
-      self::hackMenuRebuild($args); // may exit
+      // may exit
+      self::hackMenuRebuild($args);
       self::init($args);
-      self::hackStandalone($args);
+      Civi::dispatcher()->dispatch('civi.invoke.auth', \Civi\Core\Event\GenericHookEvent::create(['args' => $args]));
       $item = self::getItem($args);
       return self::runItem($item);
     }
@@ -108,16 +93,17 @@ class CRM_Core_Invoke {
    *   List of path parts.
    * @void
    */
-  static public function hackMenuRebuild($args) {
-    if (array('civicrm', 'menu', 'rebuild') == $args || array('civicrm', 'clearcache') == $args) {
+  public static function hackMenuRebuild($args) {
+    if (['civicrm', 'menu', 'rebuild'] == $args || ['civicrm', 'clearcache'] == $args) {
       // ensure that the user has a good privilege level
       if (CRM_Core_Permission::check('administer CiviCRM')) {
         self::rebuildMenuAndCaches();
         CRM_Core_Session::setStatus(ts('Cleared all CiviCRM caches (database, menu, templates)'), ts('Complete'), 'success');
-        return CRM_Utils_System::redirect(); // exits
+        // exits
+        return CRM_Utils_System::redirect();
       }
       else {
-        CRM_Core_Error::fatal('You do not have permission to execute this url');
+        CRM_Core_Error::statusBounce('You do not have permission to execute this url');
       }
     }
   }
@@ -129,7 +115,7 @@ class CRM_Core_Invoke {
    *   List of path parts.
    * @void
    */
-  static public function init($args) {
+  public static function init($args) {
     // first fire up IDS and check for bad stuff
     $config = CRM_Core_Config::singleton();
 
@@ -139,33 +125,13 @@ class CRM_Core_Invoke {
   }
 
   /**
-   * Hackish support for /standalone/*
-   *
-   * @param array $args
-   *   List of path parts.
-   * @void
-   */
-  static public function hackStandalone($args) {
-    $config = CRM_Core_Config::singleton();
-    if ($config->userFramework == 'Standalone') {
-      $session = CRM_Core_Session::singleton();
-      if ($session->get('new_install') !== TRUE) {
-        CRM_Core_Standalone::sidebarLeft();
-      }
-      elseif ($args[1] == 'standalone' && $args[2] == 'register') {
-        CRM_Core_Menu::store();
-      }
-    }
-  }
-
-  /**
    * Determine which menu $item corresponds to $args
    *
    * @param array $args
    *   List of path parts.
    * @return array; see CRM_Core_Menu
    */
-  static public function getItem($args) {
+  public static function getItem($args) {
     if (is_array($args)) {
       // get the menu items
       $path = implode('/', $args);
@@ -186,15 +152,59 @@ class CRM_Core_Invoke {
   }
 
   /**
+   * Register an alternative phar:// stream wrapper to filter out insecure Phars
+   *
+   * PHP makes it possible to trigger Object Injection vulnerabilities by using
+   * a side-effect of the phar:// stream wrapper that unserializes Phar
+   * metadata. To mitigate this vulnerability, projects such as TYPO3 and Drupal
+   * have implemented an alternative Phar stream wrapper that disallows
+   * inclusion of phar files based on certain parameters.
+   *
+   * This code attempts to register the TYPO3 Phar stream wrapper using the
+   * interceptor defined in \Civi\Core\Security\PharExtensionInterceptor. In an
+   * environment where the stream wrapper was already registered via
+   * \TYPO3\PharStreamWrapper\Manager (i.e. Drupal), this code does not do
+   * anything. In other environments (e.g. WordPress, at the time of this
+   * writing), the TYPO3 library is used to register the interceptor to mitigate
+   * the vulnerability.
+   */
+  private static function registerPharHandler() {
+    try {
+      // try to get the existing stream wrapper, registered e.g. by Drupal
+      \TYPO3\PharStreamWrapper\Manager::instance();
+    }
+    catch (\LogicException $e) {
+      if ($e->getCode() === 1535189872) {
+        // no phar stream wrapper was registered by \TYPO3\PharStreamWrapper\Manager.
+        // This means we're probably not on Drupal and need to register our own.
+        \TYPO3\PharStreamWrapper\Manager::initialize(
+          (new \TYPO3\PharStreamWrapper\Behavior())
+            ->withAssertion(new \Civi\Core\Security\PharExtensionInterceptor())
+        );
+        if (in_array('phar', stream_get_wrappers())) {
+          stream_wrapper_unregister('phar');
+          stream_wrapper_register('phar', \TYPO3\PharStreamWrapper\PharStreamWrapper::class);
+        }
+      }
+      else {
+        // this is not an exception we can handle
+        throw $e;
+      }
+    }
+  }
+
+  /**
    * Given a menu item, call the appropriate controller and return the response
    *
    * @param array $item
    *   See CRM_Core_Menu.
    * @return string, HTML
    */
-  static public function runItem($item) {
+  public static function runItem($item) {
     $ids = new CRM_Core_IDS();
     $ids->check($item);
+
+    self::registerPharHandler();
 
     $config = CRM_Core_Config::singleton();
     if ($config->userFramework == 'Joomla' && $item) {
@@ -212,16 +222,10 @@ class CRM_Core_Invoke {
     $template->assign('formTpl', 'default');
 
     if ($item) {
-      // CRM-7656 - make sure we send a clean sanitized path to create printer friendly url
-      $printerFriendly = CRM_Utils_System::makeURL(
-          'snippet', FALSE, FALSE,
-          CRM_Utils_Array::value('path', $item)
-        ) . '2';
-      $template->assign('printerFriendly', $printerFriendly);
 
       if (!array_key_exists('page_callback', $item)) {
         CRM_Core_Error::debug('Bad item', $item);
-        CRM_Core_Error::fatal(ts('Bad menu record in database'));
+        CRM_Core_Error::statusBounce(ts('Bad menu record in database'));
       }
 
       // check that we are permissioned to access this page
@@ -274,12 +278,12 @@ class CRM_Core_Invoke {
       if (is_array($item['page_callback']) || strpos($item['page_callback'], ':')) {
         $result = call_user_func(Civi\Core\Resolver::singleton()->get($item['page_callback']));
       }
-      elseif (strstr($item['page_callback'], '_Form')) {
+      elseif (strpos($item['page_callback'], '_Form') !== FALSE) {
         $wrapper = new CRM_Utils_Wrapper();
         $result = $wrapper->run(
-          CRM_Utils_Array::value('page_callback', $item),
-          CRM_Utils_Array::value('title', $item),
-          isset($pageArgs) ? $pageArgs : NULL
+          $item['page_callback'] ?? NULL,
+          $item['title'] ?? NULL,
+          $pageArgs ?? NULL
         );
       }
       else {
@@ -289,7 +293,7 @@ class CRM_Core_Invoke {
           $mode = $pageArgs['mode'];
           unset($pageArgs['mode']);
         }
-        $title = CRM_Utils_Array::value('title', $item);
+        $title = $item['title'] ?? NULL;
         if (strstr($item['page_callback'], '_Page') || strstr($item['page_callback'], '\\Page\\')) {
           $object = new $item['page_callback']($title, $mode);
           $object->urlPath = explode('/', $_GET[$config->userFrameworkURLVar]);
@@ -304,7 +308,7 @@ class CRM_Core_Invoke {
           $object = new $item['page_callback']($title, TRUE, $mode, NULL, $addSequence);
         }
         else {
-          CRM_Core_Error::fatal();
+          throw new CRM_Core_Exception('Execute supplied menu action');
         }
         $result = $object->run($newArgs, $pageArgs);
       }
@@ -328,12 +332,12 @@ class CRM_Core_Invoke {
    *
    */
   public static function form($action, $contact_type, $contact_sub_type) {
-    CRM_Utils_System::setUserContext(array('civicrm/contact/search/basic', 'civicrm/contact/view'));
+    CRM_Utils_System::setUserContext(['civicrm/contact/search/basic', 'civicrm/contact/view']);
     $wrapper = new CRM_Utils_Wrapper();
 
     $properties = CRM_Core_Component::contactSubTypeProperties($contact_sub_type, 'Edit');
     if ($properties) {
-      $wrapper->run($properties['class'], ts('New %1', array(1 => $contact_sub_type)), $action, TRUE);
+      $wrapper->run($properties['class'], ts('New %1', [1 => $contact_sub_type]), $action, TRUE);
     }
     else {
       $wrapper->run('CRM_Contact_Form_Contact', ts('New Contact'), $action, TRUE);
@@ -350,7 +354,7 @@ class CRM_Core_Invoke {
       return;
     }
     // always use cached results - they will be refreshed by the session timer
-    $status = Civi::settings()->get('systemStatusCheckResult');
+    $status = Civi::cache('checks')->get('systemStatusCheckResult');
     $template->assign('footer_status_severity', $status);
     $template->assign('footer_status_message', CRM_Utils_Check::toStatusLabel($status));
   }
@@ -390,6 +394,7 @@ class CRM_Core_Invoke {
       CRM_Utils_Request::retrieve('triggerRebuild', 'Boolean', CRM_Core_DAO::$_nullObject, FALSE, 0, 'GET')
     ) {
       CRM_Core_DAO::triggerRebuild();
+      $config->userSystem->invalidateRouteCache();
     }
     CRM_Core_DAO_AllCoreTables::reinitializeCache(TRUE);
     CRM_Core_ManagedEntities::singleton(TRUE)->reconcile();

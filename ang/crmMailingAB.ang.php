@@ -1,19 +1,15 @@
 <?php
 // This file declares an Angular module which can be autoloaded
-// in CiviCRM. See also:
-// http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_angularModules
-
 // ODDITY: Only loads if you have CiviMail permissions.
-// ODDITY: Extra resources loaded via CRM_Mailing_Info::getAngularModules.
 
-return array(
+return [
   'ext' => 'civicrm',
-  'js' => array(
+  'js' => [
     'ang/crmMailingAB.js',
     'ang/crmMailingAB/*.js',
     'ang/crmMailingAB/*/*.js',
-  ),
-  'css' => array('ang/crmMailingAB.css'),
-  'partials' => array('ang/crmMailingAB'),
-  'requires' => array('ngRoute', 'ui.utils', 'crmUi', 'crmAttachment', 'crmMailing', 'crmD3', 'crmResource'),
-);
+  ],
+  'css' => ['ang/crmMailingAB.css'],
+  'partials' => ['ang/crmMailingAB'],
+  'requires' => ['ngRoute', 'ui.utils', 'crmUi', 'crmAttachment', 'crmMailing', 'crmD3', 'crmResource'],
+];

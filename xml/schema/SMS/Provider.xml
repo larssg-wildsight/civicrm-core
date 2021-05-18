@@ -12,6 +12,9 @@
     <type>int unsigned</type>
     <required>true</required>
     <comment>SMS Provider ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>4.2</add>
   </field>
   <primaryKey>
@@ -63,6 +66,9 @@
     <type>int unsigned</type>
     <required>true</required>
     <comment>points to value in civicrm_option_value for group sms_api_type</comment>
+    <pseudoconstant>
+      <optionGroupName>sms_api_type</optionGroupName>
+    </pseudoconstant>
     <html>
       <type>Select</type>
     </html>
@@ -110,7 +116,7 @@
   </field>
   <field>
     <name>domain_id</name>
-    <title>SMS Domain</title>
+    <title>Domain ID</title>
     <type>int unsigned</type>
     <pseudoconstant>
       <table>civicrm_domain</table>
@@ -118,6 +124,9 @@
       <labelColumn>name</labelColumn>
     </pseudoconstant>
     <comment>Which Domain is this sms provider for</comment>
+    <html>
+      <label>Domain</label>
+    </html>
     <add>4.7</add>
   </field>
   <foreignKey>

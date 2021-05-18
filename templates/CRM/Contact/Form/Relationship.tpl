@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {* this template is used for adding/editing/viewing relationships  *}
@@ -57,18 +41,18 @@
                 {if $row.is_permission_a_b}
                   <div>
                   {if $row.rtype EQ 'a_b' AND $is_contact_id_a}
-                    {ts 1=$displayName 2=$row.display_name}<strong>%1</strong> can view and update information about %2.{/ts}
+                    {include file="CRM/Contact/Page/View/RelationshipPerm.tpl" permType=$row.is_permission_a_b permDisplayName=$displayName otherDisplayName=$row.display_name displayText=true}
                   {else}
-                    {ts 1=$row.display_name 2=$displayName}<strong>%1</strong> can view and update information about %2.{/ts}
+                    {include file="CRM/Contact/Page/View/RelationshipPerm.tpl" permType=$row.is_permission_a_b otherDisplayName=$displayName permDisplayName=$row.display_name displayText=true}
                   {/if}
                   </div>
                 {/if}
                 {if $row.is_permission_b_a}
                   <div>
                   {if $row.rtype EQ 'a_b' AND $is_contact_id_a}
-                    {ts 1=$row.display_name 2=$displayName}<strong>%1</strong> can view and update information about %2.{/ts}
+                    {include file="CRM/Contact/Page/View/RelationshipPerm.tpl" permType=$row.is_permission_b_a otherDisplayName=$displayName permDisplayName=$row.display_name displayText=true}
                   {else}
-                    {ts 1=$displayName 2=$row.display_name}<strong>%1</strong> can view and update information about %2.{/ts}
+                    {include file="CRM/Contact/Page/View/RelationshipPerm.tpl" permType=$row.is_permission_b_a permDisplayName=$displayName otherDisplayName=$row.display_name displayText=true}
                   {/if}
                   </div>
                 {/if}
@@ -101,8 +85,7 @@
         </tr>
         <tr class="crm-relationship-form-block-start_date">
           <td class="label">{$form.start_date.label}</td>
-          <td>{include file="CRM/common/jcalendar.tpl" elementName=start_date}<span>{$form.end_date.label} {include file="CRM/common/jcalendar.tpl" elementName=end_date}</span><br />
-            <span class="description">{ts}If this relationship has start and/or end dates, specify them here.{/ts}</span></td>
+          <td>{$form.start_date.html} {$form.end_date.label} {$form.end_date.html}<br /><span class="description">{ts}If this relationship has start and/or end dates, specify them here.{/ts}</span></td>
         </tr>
         <tr class="crm-relationship-form-block-description">
           <td class="label">{$form.description.label}</td>
@@ -116,15 +99,15 @@
           {capture assign="contact_b"}{if $action eq 1}{ts}selected contact(s){/ts}{else}{$display_name_b}{/if}{/capture}
           <td class="label"><label>{ts}Permissions{/ts}</label></td>
           <td>
+            {ts 1=$display_name_a 2=$contact_b}Permission for <strong>%1</strong> to access information about <strong>%2</strong>{/ts}<br />
             {$form.is_permission_a_b.html}
-            {ts 1=$display_name_a 2=$contact_b}<strong>%1</strong> can view and update information about %2.{/ts}
           </td>
         </tr>
         <tr class="crm-relationship-form-block-is_permission_b_a">
-          <td class="label"></td>
+          <td class="label"> </td>
           <td>
+            {ts 1=$contact_b|ucfirst 2=$display_name_a}Permission for <strong>%1</strong> to access information about <strong>%2</strong>{/ts}<br />
             {$form.is_permission_b_a.html}
-            {ts 1=$contact_b|ucfirst 2=$display_name_a}<strong>%1</strong> can view and update information about %2.{/ts}
           </td>
         </tr>
         <tr class="crm-relationship-form-block-is_active">
@@ -261,10 +244,6 @@
 
             // Show/hide employer field
             $('.crm-relationship-form-block-is_current_employer', $form).toggle(rType === {/literal}'{$employmentRelationship}'{literal});
-
-            // Swap the permission checkboxes to match selected relationship direction
-            $('#is_permission_a_b', $form).attr('name', 'is_permission_' + source + '_' + target);
-            $('#is_permission_b_a', $form).attr('name', 'is_permission_' + target + '_' + source);
 
             CRM.buildCustomData('Relationship', rType);
           }

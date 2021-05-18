@@ -1,36 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
- * $Id$
- *
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -87,7 +69,7 @@ class CRM_Event_Import_Form_Preview extends CRM_Import_Form_Preview {
       $this->set('downloadMismatchRecordsUrl', CRM_Utils_System::url('civicrm/export', $urlParams));
     }
 
-    $properties = array(
+    $properties = [
       'mapper',
       'dataValues',
       'columnCount',
@@ -98,7 +80,7 @@ class CRM_Event_Import_Form_Preview extends CRM_Import_Form_Preview {
       'downloadErrorRecordsUrl',
       'downloadConflictRecordsUrl',
       'downloadMismatchRecordsUrl',
-    );
+    ];
 
     foreach ($properties as $property) {
       $this->assign($property, $this->get($property));
@@ -113,14 +95,14 @@ class CRM_Event_Import_Form_Preview extends CRM_Import_Form_Preview {
    */
   public function postProcess() {
     $fileName = $this->controller->exportValue('DataSource', 'uploadFile');
-    $seperator = $this->controller->exportValue('DataSource', 'fieldSeparator');
+    $separator = $this->controller->exportValue('DataSource', 'fieldSeparator');
     $skipColumnHeader = $this->controller->exportValue('DataSource', 'skipColumnHeader');
     $invalidRowCount = $this->get('invalidRowCount');
     $conflictRowCount = $this->get('conflictRowCount');
     $onDuplicate = $this->get('onDuplicate');
 
     $mapper = $this->controller->exportValue('MapField', 'mapper');
-    $mapperKeys = array();
+    $mapperKeys = [];
 
     foreach ($mapper as $key => $value) {
       $mapperKeys[$key] = $mapper[$key][0];
@@ -131,13 +113,13 @@ class CRM_Event_Import_Form_Preview extends CRM_Import_Form_Preview {
     $mapFields = $this->get('fields');
 
     foreach ($mapper as $key => $value) {
-      $header = array();
+      $header = [];
       if (isset($mapFields[$mapper[$key][0]])) {
         $header[] = $mapFields[$mapper[$key][0]];
       }
       $mapperFields[] = implode(' - ', $header);
     }
-    $parser->run($fileName, $seperator,
+    $parser->run($fileName, $separator,
       $mapperFields,
       $skipColumnHeader,
       CRM_Import_Parser::MODE_IMPORT,
@@ -152,7 +134,7 @@ class CRM_Event_Import_Form_Preview extends CRM_Import_Form_Preview {
 
     $errorStack = CRM_Core_Error::singleton();
     $errors = $errorStack->getErrors();
-    $errorMessage = array();
+    $errorMessage = [];
 
     if (is_array($errors)) {
       foreach ($errors as $key => $value) {

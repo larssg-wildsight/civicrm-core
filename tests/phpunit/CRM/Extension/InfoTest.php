@@ -5,12 +5,13 @@
  * @group headless
  */
 class CRM_Extension_InfoTest extends CiviUnitTestCase {
-  public function setUp() {
+
+  public function setUp(): void {
     parent::setUp();
     $this->file = NULL;
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
     if ($this->file) {
       unlink($this->file);
     }
@@ -49,12 +50,17 @@ class CRM_Extension_InfoTest extends CiviUnitTestCase {
     $this->assertEquals('test.foo', $info->key);
     $this->assertEquals('foo', $info->file);
     $this->assertEquals('zamboni', $info->typeInfo['extra']);
-    $this->assertEquals(array(), $info->requires);
+    $this->assertEquals(NULL, $info->upgrader);
+    $this->assertEquals([], $info->requires);
   }
 
   public function testGood_string_extras() {
     $data = "<extension key='test.bar' type='module'><file>testbar</file>
-      <classloader><psr4 prefix=\"Civi\\\" path=\"Civi\"/></classloader>
+      <classloader>
+        <psr4 prefix=\"Civi\\\" path=\"Civi\"/>
+        <psr0 prefix=\"CRM_\" path=\"\"/>
+      </classloader>
+      <upgrader>CRM_Foo_Upgrader</upgrader>
       <requires><ext>org.civicrm.a</ext><ext>org.civicrm.b</ext></requires>
     </extension>
     ";
@@ -64,7 +70,44 @@ class CRM_Extension_InfoTest extends CiviUnitTestCase {
     $this->assertEquals('testbar', $info->file);
     $this->assertEquals('Civi\\', $info->classloader[0]['prefix']);
     $this->assertEquals('Civi', $info->classloader[0]['path']);
-    $this->assertEquals(array('org.civicrm.a', 'org.civicrm.b'), $info->requires);
+    $this->assertEquals('psr4', $info->classloader[0]['type']);
+    $this->assertEquals('CRM_', $info->classloader[1]['prefix']);
+    $this->assertEquals('', $info->classloader[1]['path']);
+    $this->assertEquals('psr0', $info->classloader[1]['type']);
+    $this->assertEquals('CRM_Foo_Upgrader', $info->upgrader);
+    $this->assertEquals(['org.civicrm.a', 'org.civicrm.b'], $info->requires);
+  }
+
+  public function getExampleAuthors() {
+    $authorAliceXml = '<author><name>Alice</name><email>alice@example.org</email><role>Maintainer</role></author>';
+    $authorAliceArr = ['name' => 'Alice', 'email' => 'alice@example.org', 'role' => 'Maintainer'];
+    $authorBobXml = ' <author><name>Bob</name><homepage>https://example.com/bob</homepage><role>Developer</role></author>';
+    $authorBobArr = ['name' => 'Bob', 'homepage' => 'https://example.com/bob', 'role' => 'Developer'];
+
+    $maintAliceXml = '<maintainer><author>Alice</author><email>alice@example.org</email></maintainer>';
+    $maintAliceArr = ['author' => 'Alice', 'email' => 'alice@example.org'];
+
+    $hdr = "<extension key='test.author' type='module'><file>testauthor</file>";
+    $ftr = "</extension>";
+
+    // Maintainers can be inputted via either <maintainer> or <authors> (with role).
+    // Maintainers are outputted via both `$info->maintainer` and `$info->authors` (with role)
+
+    $cases = [];
+    $cases[] = ["{$hdr}{$maintAliceXml}{$ftr}", [$authorAliceArr], $maintAliceArr];
+    $cases[] = ["{$hdr}<authors>{$authorAliceXml}</authors>{$ftr}", [$authorAliceArr], $maintAliceArr];
+    $cases[] = ["{$hdr}<authors>{$authorAliceXml}{$authorBobXml}</authors>{$ftr}", [$authorAliceArr, $authorBobArr], $maintAliceArr];
+    $cases[] = ["{$hdr}<authors>{$authorBobXml}</authors>{$ftr}", [$authorBobArr], NULL];
+    return $cases;
+  }
+
+  /**
+   * @dataProvider getExampleAuthors
+   */
+  public function testAuthors($xmlString, $expectAuthors, $expectMaintainer) {
+    $info = CRM_Extension_Info::loadFromString($xmlString);
+    $this->assertEquals($expectAuthors, $info->authors);
+    $this->assertEquals($expectMaintainer, $info->maintainer);
   }
 
   public function testBad_string() {
@@ -79,6 +122,14 @@ class CRM_Extension_InfoTest extends CiviUnitTestCase {
       $exc = $e;
     }
     $this->assertTrue(is_object($exc));
+  }
+
+  public function test_requirements() {
+    // Quicksearch requirement should get filtered out per extension-compatibility.json
+    $data = "<extension key='test.foo' type='module'><file>foo</file><requires><ext>example.test</ext><ext>com.ixiam.modules.quicksearch</ext></requires></extension>";
+
+    $info = CRM_Extension_Info::loadFromString($data);
+    $this->assertEquals(['example.test'], $info->requires);
   }
 
 }

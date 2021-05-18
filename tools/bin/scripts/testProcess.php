@@ -1,5 +1,10 @@
 <?php
-require_once '../civicrm.config.php'; require_once 'CRM/Core/Config.php';
+if (!(php_sapi_name() == 'cli' || (is_numeric($_SERVER['argc']) && $_SERVER['argc'] > 0))) {
+  header("HTTP/1.0 404 Not Found");
+  return;
+}
+require_once '../civicrm.config.php';
+require_once 'CRM/Core/Config.php';
 require_once 'CRM/Core/Error.php';
 $config = CRM_Core_Config::singleton();
 
@@ -10,13 +15,15 @@ CRM_Core_Error::debug($report);
 exit();
 
 $xmlProcessor->run(104, 1, 'Substance Abuse', '15 Day Review');
-$params = array('clientID' => 104,
+$params = [
+  'clientID' => 104,
   'creatorID' => 108,
   'standardTimeline' => 1,
+  // activityTypeName means name here not label, and that is correct here (dev/core#1116-ok-name)
   'activityTypeName' => 'Open Case',
   'dueDateTime' => time(),
   'caseID' => 1,
-);
+];
 require_once 'CRM/Case/XMLProcessor/Process.php';
 $xmlProcessor = new CRM_Case_XMLProcessor_Process();
 

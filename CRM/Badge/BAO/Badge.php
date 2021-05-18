@@ -1,32 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -73,7 +59,7 @@ class CRM_Badge_BAO_Badge {
     }
 
     $this->pdf->Output(CRM_Utils_String::munge($layoutInfo['title'], '_', 64) . '.pdf', 'D');
-    CRM_Utils_System::civiExit(1);
+    CRM_Utils_System::civiExit();
   }
 
   /**
@@ -88,7 +74,7 @@ class CRM_Badge_BAO_Badge {
    *   row with meta data
    */
   public static function formatLabel(&$row, &$layout) {
-    $formattedRow = array('labelFormat' => $layout['label_format_name']);
+    $formattedRow = ['labelFormat' => $layout['label_format_name']];
     $formattedRow['labelTitle'] = $layout['title'];
     $formattedRow['labelId'] = $layout['id'];
 
@@ -103,14 +89,14 @@ class CRM_Badge_BAO_Badge {
           }
         }
 
-        $formattedRow['token'][$key] = array(
+        $formattedRow['token'][$key] = [
           'value' => $value,
           'font_name' => $layout['data']['font_name'][$key],
           'font_size' => $layout['data']['font_size'][$key],
           'font_style' => $layout['data']['font_style'][$key],
           'text_alignment' => $layout['data']['text_alignment'][$key],
           'token' => $layout['data']['token'][$key],
-        );
+        ];
       }
     }
 
@@ -147,10 +133,10 @@ class CRM_Badge_BAO_Badge {
     }
 
     if (!empty($layout['data']['add_barcode'])) {
-      $formattedRow['barcode'] = array(
+      $formattedRow['barcode'] = [
         'alignment' => $layout['data']['barcode_alignment'],
         'type' => $layout['data']['barcode_type'],
-      );
+      ];
     }
 
     // finally assign all the row values, so that we can use it for barcode etc
@@ -204,10 +190,10 @@ class CRM_Badge_BAO_Badge {
     if ((CRM_Utils_Array::value('height_image_1', $formattedRow) >
         CRM_Utils_Array::value('height_image_2', $formattedRow)) && !empty($formattedRow['height_image_1'])
     ) {
-      $startOffset = CRM_Utils_Array::value('height_image_1', $formattedRow);
+      $startOffset = $formattedRow['height_image_1'] ?? NULL;
     }
     elseif (!empty($formattedRow['height_image_2'])) {
-      $startOffset = CRM_Utils_Array::value('height_image_2', $formattedRow);
+      $startOffset = $formattedRow['height_image_2'] ?? NULL;
     }
 
     if (!empty($formattedRow['participant_image'])) {
@@ -225,18 +211,18 @@ class CRM_Badge_BAO_Badge {
           break;
       }
       $this->pdf->Image($formattedRow['participant_image'], $x + $imageAlign, $y + $startOffset, CRM_Utils_Array::value('width_participant_image', $formattedRow), CRM_Utils_Array::value('height_participant_image', $formattedRow));
-      if ($startOffset == NULL && CRM_Utils_Array::value('height_participant_image', $formattedRow)) {
-        $startOffset = CRM_Utils_Array::value('height_participant_image', $formattedRow);
+      if ($startOffset == NULL && !empty($formattedRow['height_participant_image'])) {
+        $startOffset = $formattedRow['height_participant_image'];
       }
     }
 
-    $this->pdf->SetLineStyle(array(
+    $this->pdf->SetLineStyle([
       'width' => 0.1,
       'cap' => 'round',
       'join' => 'round',
       'dash' => '2,2',
-      'color' => array(0, 0, 200),
-    ));
+      'color' => [0, 0, 200],
+    ]);
 
     $rowCount = CRM_Badge_Form_Layout::FIELD_ROWCOUNT;
     for ($i = 1; $i <= $rowCount; $i++) {
@@ -304,7 +290,7 @@ class CRM_Badge_BAO_Badge {
             break;
         }
 
-        $style = array(
+        $style = [
           'position' => '',
           'align' => '',
           'stretch' => FALSE,
@@ -313,13 +299,13 @@ class CRM_Badge_BAO_Badge {
           'border' => FALSE,
           'hpadding' => 13.5,
           'vpadding' => 'auto',
-          'fgcolor' => array(0, 0, 0),
+          'fgcolor' => [0, 0, 0],
           'bgcolor' => FALSE,
           'text' => FALSE,
           'font' => 'helvetica',
           'fontsize' => 8,
           'stretchtext' => 0,
-        );
+        ];
 
         $this->pdf->write1DBarcode($data['current_value'], 'C128', $xAlign, $y + $this->pdf->height - 10, '70',
           12, 0.4, $style, 'B');
@@ -342,14 +328,14 @@ class CRM_Badge_BAO_Badge {
             break;
         }
 
-        $style = array(
+        $style = [
           'border' => FALSE,
           'hpadding' => 13.5,
           'vpadding' => 'auto',
-          'fgcolor' => array(0, 0, 0),
+          'fgcolor' => [0, 0, 0],
           'bgcolor' => FALSE,
           'position' => '',
-        );
+        ];
 
         $this->pdf->write2DBarcode($data['current_value'], 'QRCODE,H', $xAlign, $y + $this->pdf->height - 26, 30,
           30, $style, 'B');
@@ -400,7 +386,7 @@ class CRM_Badge_BAO_Badge {
     $f = $imgRes / 25.4;
     $w = !empty($w) ? $w : $imgsize[0] / $f;
     $h = !empty($h) ? $h : $imgsize[1] / $f;
-    return array($w, $h);
+    return [$w, $h];
   }
 
   /**
@@ -415,7 +401,7 @@ class CRM_Badge_BAO_Badge {
     $layoutInfo = CRM_Badge_BAO_Layout::buildLayout($params);
 
     // split/get actual field names from token and individual contact image URLs
-    $returnProperties = array();
+    $returnProperties = [];
     if (!empty($layoutInfo['data']['token'])) {
       foreach ($layoutInfo['data']['token'] as $index => $value) {
         $element = '';
@@ -445,7 +431,7 @@ class CRM_Badge_BAO_Badge {
     }
 
     // add additional required fields for query execution
-    $additionalFields = array('participant_register_date', 'participant_id', 'event_id', 'contact_id', 'image_URL');
+    $additionalFields = ['participant_register_date', 'participant_id', 'event_id', 'contact_id', 'image_URL'];
     foreach ($additionalFields as $field) {
       $returnProperties[$field] = 1;
     }
@@ -479,12 +465,12 @@ class CRM_Badge_BAO_Badge {
     $queryString = "$select $from $where $having $sortOrder";
 
     $dao = CRM_Core_DAO::executeQuery($queryString);
-    $rows = array();
+    $rows = [];
     while ($dao->fetch()) {
       $query->convertToPseudoNames($dao);
-      $rows[$dao->participant_id] = array();
+      $rows[$dao->participant_id] = [];
       foreach ($returnProperties as $key => $dontCare) {
-        $value = isset($dao->$key) ? $dao->$key : NULL;
+        $value = $dao->$key ?? NULL;
         // Format custom fields
         if (strstr($key, 'custom_') && isset($value)) {
           $value = CRM_Core_BAO_CustomField::displayValue($value, substr($key, 7), $dao->contact_id);

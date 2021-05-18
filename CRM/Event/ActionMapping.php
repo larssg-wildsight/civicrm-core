@@ -1,27 +1,11 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
@@ -53,7 +37,7 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
    * @param \Civi\ActionSchedule\Event\MappingRegisterEvent $registrations
    */
   public static function onRegisterActionMappings(\Civi\ActionSchedule\Event\MappingRegisterEvent $registrations) {
-    $registrations->register(CRM_Event_ActionMapping::create(array(
+    $registrations->register(CRM_Event_ActionMapping::create([
       'id' => CRM_Event_ActionMapping::EVENT_TYPE_MAPPING_ID,
       'entity' => 'civicrm_participant',
       'entity_label' => ts('Event Type'),
@@ -61,10 +45,8 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
       'entity_value_label' => ts('Event Type'),
       'entity_status' => 'civicrm_participant_status_type',
       'entity_status_label' => ts('Participant Status'),
-      'entity_date_start' => 'event_start_date',
-      'entity_date_end' => 'event_end_date',
-    )));
-    $registrations->register(CRM_Event_ActionMapping::create(array(
+    ]));
+    $registrations->register(CRM_Event_ActionMapping::create([
       'id' => CRM_Event_ActionMapping::EVENT_NAME_MAPPING_ID,
       'entity' => 'civicrm_participant',
       'entity_label' => ts('Event Name'),
@@ -72,10 +54,8 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
       'entity_value_label' => ts('Event Name'),
       'entity_status' => 'civicrm_participant_status_type',
       'entity_status_label' => ts('Participant Status'),
-      'entity_date_start' => 'event_start_date',
-      'entity_date_end' => 'event_end_date',
-    )));
-    $registrations->register(CRM_Event_ActionMapping::create(array(
+    ]));
+    $registrations->register(CRM_Event_ActionMapping::create([
       'id' => CRM_Event_ActionMapping::EVENT_TPL_MAPPING_ID,
       'entity' => 'civicrm_participant',
       'entity_label' => ts('Event Template'),
@@ -83,9 +63,22 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
       'entity_value_label' => ts('Event Template'),
       'entity_status' => 'civicrm_participant_status_type',
       'entity_status_label' => ts('Participant Status'),
-      'entity_date_start' => 'event_start_date',
-      'entity_date_end' => 'event_end_date',
-    )));
+    ]));
+  }
+
+  /**
+   * Get a list of available date fields.
+   *
+   * @return array
+   *   Array(string $fieldName => string $fieldLabel).
+   */
+  public function getDateFields() {
+    return [
+      'start_date' => ts('Event Start'),
+      'end_date' => ts('Event End'),
+      'registration_start_date' => ts('Registration Start'),
+      'registration_end_date' => ts('Registration End'),
+    ];
   }
 
   /**
@@ -121,7 +114,7 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
         return \CRM_Event_PseudoConstant::participantRole();
 
       default:
-        return array();
+        return [];
     }
   }
 
@@ -142,12 +135,15 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
     $selectedValues = (array) \CRM_Utils_Array::explodePadded($schedule->entity_value);
     $selectedStatuses = (array) \CRM_Utils_Array::explodePadded($schedule->entity_status);
 
-    $query = \CRM_Utils_SQL_Select::from("{$this->entity} e")->param($defaultParams);;
+    $query = \CRM_Utils_SQL_Select::from("{$this->entity} e")->param($defaultParams);
     $query['casAddlCheckFrom'] = 'civicrm_event r';
     $query['casContactIdField'] = 'e.contact_id';
     $query['casEntityIdField'] = 'e.id';
     $query['casContactTableAlias'] = NULL;
     $query['casDateField'] = str_replace('event_', 'r.', $schedule->start_action_date);
+    if (empty($query['casDateField']) && $schedule->absolute_date) {
+      $query['casDateField'] = "'" . CRM_Utils_Type::escape($schedule->absolute_date, 'String') . "'";
+    }
 
     $query->join('r', 'INNER JOIN civicrm_event r ON e.event_id = r.id');
     if ($schedule->recipient_listing && $schedule->limit_to) {
@@ -163,6 +159,7 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
     }
 
     // build where clause
+    // FIXME: This handles scheduled reminder of type "Event Name" and "Event Type", gives incorrect result on "Event Template".
     if (!empty($selectedValues)) {
       $valueField = ($this->id == \CRM_Event_ActionMapping::EVENT_TYPE_MAPPING_ID) ? 'event_type_id' : 'id';
       $query->where("r.{$valueField} IN (@selectedValues)")
@@ -188,6 +185,51 @@ class CRM_Event_ActionMapping extends \Civi\ActionSchedule\Mapping {
       }
     }
     return $query;
+  }
+
+  /**
+   * Determine whether a schedule based on this mapping should
+   * send to additional contacts.
+   *
+   * @param string $entityId Either an event ID/event type ID, or a set of event IDs/types separated
+   *  by the separation character.
+   */
+  public function sendToAdditional($entityId): bool {
+    $selectedValues = (array) \CRM_Utils_Array::explodePadded($entityId);
+    switch ($this->id) {
+      case self::EVENT_TYPE_MAPPING_ID:
+        $valueTable = 'e';
+        $valueField = 'event_type_id';
+        $templateReminder = FALSE;
+        break;
+
+      case self::EVENT_NAME_MAPPING_ID:
+        $valueTable = 'e';
+        $valueField = 'id';
+        $templateReminder = FALSE;
+        break;
+
+      case self::EVENT_TPL_MAPPING_ID:
+        $valueTable = 't';
+        $valueField = 'id';
+        $templateReminder = TRUE;
+        break;
+    }
+    // Don't send to additional recipients if this event is deleted or a template.
+    $query = new \CRM_Utils_SQL_Select('civicrm_event e');
+    $query
+      ->select('e.id')
+      ->where("e.is_template = 0")
+      ->where("e.is_active = 1");
+    if ($templateReminder) {
+      $query->join('r', 'INNER JOIN civicrm_event t ON e.template_title = t.template_title AND t.is_template = 1');
+    }
+    $sql = $query
+      ->where("{$valueTable}.{$valueField} IN (@selectedValues)")
+      ->param('selectedValues', $selectedValues)
+      ->toSQL();
+    $dao = \CRM_Core_DAO::executeQuery($sql);
+    return (bool) $dao->N;
   }
 
 }

@@ -18,7 +18,7 @@ class api_v3_CRM11793Test extends CiviUnitTestCase {
    * Connect to the database, truncate the tables that will be used
    * and redirect stdin to a temporary file
    */
-  public function setUp() {
+  public function setUp(): void {
     parent::setUp();
 
     $this->individualCreate();
@@ -26,7 +26,8 @@ class api_v3_CRM11793Test extends CiviUnitTestCase {
     $this->organizationCreate();
   }
 
-  public function tearDown() {
+  public function tearDown(): void {
+    parent::tearDown();
   }
 
   /**
@@ -54,9 +55,9 @@ class api_v3_CRM11793Test extends CiviUnitTestCase {
     $result = $this->callAPISuccess(
       'contact',
       'get',
-      array(
+      [
         'contact_type' => $contactType,
-      )
+      ]
     );
 
     foreach ($result['values'] as $idx => $contact) {

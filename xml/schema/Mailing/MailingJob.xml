@@ -6,11 +6,15 @@
   <name>civicrm_mailing_job</name>
   <comment>Stores information about the job that executes this mailing</comment>
   <archive>true</archive>
+  <component>CiviMail</component>
   <field>
     <name>id</name>
     <title>Mailing Job ID</title>
     <type>int unsigned</type>
     <required>true</required>
+    <html>
+      <type>Number</type>
+    </html>
   </field>
   <primaryKey>
     <name>id</name>
@@ -18,10 +22,13 @@
   </primaryKey>
   <field>
     <name>mailing_id</name>
-    <title>Mailing</title>
+    <title>Mailing ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <comment>The ID of the mailing this Job will send.</comment>
+    <html>
+      <label>Mailing</label>
+    </html>
   </field>
   <foreignKey>
     <name>mailing_id</name>
@@ -36,14 +43,24 @@
     <default>NULL</default>
     <required>false</required>
     <comment>date on which this job was scheduled.</comment>
+    <html>
+      <type>Select Date</type>
+      <formatType>activityDateTime</formatType>
+    </html>
   </field>
   <field>
     <name>start_date</name>
+    <uniqueName>mailing_job_start_date</uniqueName>
+    <uniqueTitle>Mailing Start Date</uniqueTitle>
     <title>Mailing Job Start Date</title>
     <type>timestamp</type>
     <default>NULL</default>
     <required>false</required>
     <comment>date on which this job was started.</comment>
+    <html>
+      <type>Select Date</type>
+      <formatType>activityDateTime</formatType>
+    </html>
   </field>
   <field>
     <name>end_date</name>
@@ -52,9 +69,14 @@
     <default>NULL</default>
     <required>false</required>
     <comment>date on which this job ended.</comment>
+    <html>
+      <type>Select Date</type>
+      <formatType>activityDateTime</formatType>
+    </html>
   </field>
   <field>
     <name>status</name>
+    <uniqueName>mailing_job_status</uniqueName>
     <title>Mailing Job Status</title>
     <type>varchar</type>
     <length>12</length>
@@ -84,10 +106,13 @@
   </field>
   <field>
     <name>parent_id</name>
-    <title>Mailing Job Parent</title>
+    <title>Parent ID</title>
     <type>int unsigned</type>
     <comment>Parent job id</comment>
     <default>NULL</default>
+    <html>
+      <label>Parent</label>
+    </html>
     <add>3.3</add>
   </field>
   <foreignKey>

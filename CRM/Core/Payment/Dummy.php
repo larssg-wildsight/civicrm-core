@@ -11,19 +11,19 @@
  *
  * @package CRM
  * @author Marshal Newrock <marshal@idealso.com>
- * $Id: Dummy.php 45429 2013-02-06 22:11:18Z lobo $
  */
+
+use Civi\Payment\Exception\PaymentProcessorException;
+use Civi\Payment\PropertyBag;
 
 /**
  * Dummy payment processor
  */
 class CRM_Core_Payment_Dummy extends CRM_Core_Payment {
-  const CHARSET = 'iso-8859-1';
+  protected $_mode;
 
-  protected $_mode = NULL;
-
-  protected $_params = array();
-  protected $_doDirectPaymentResult = array();
+  protected $_params = [];
+  protected $_doDirectPaymentResult = [];
 
   /**
    * Set result from do Direct Payment for test purposes.
@@ -34,7 +34,7 @@ class CRM_Core_Payment_Dummy extends CRM_Core_Payment {
   public function setDoDirectPaymentResult($doDirectPaymentResult) {
     $this->_doDirectPaymentResult = $doDirectPaymentResult;
     if (empty($this->_doDirectPaymentResult['trxn_id'])) {
-      $this->_doDirectPaymentResult['trxn_id'] = array();
+      $this->_doDirectPaymentResult['trxn_id'] = [];
     }
     else {
       $this->_doDirectPaymentResult['trxn_id'] = (array) $doDirectPaymentResult['trxn_id'];
@@ -42,122 +42,125 @@ class CRM_Core_Payment_Dummy extends CRM_Core_Payment {
   }
 
   /**
-   * We only need one instance of this object. So we use the singleton
-   * pattern and cache the instance in this variable
-   *
-   * @var object
-   */
-  static private $_singleton = NULL;
-
-  /**
    * Constructor.
    *
    * @param string $mode
    *   The mode of operation: live or test.
    *
-   * @param $paymentProcessor
-   *
-   * @return \CRM_Core_Payment_Dummy
+   * @param array $paymentProcessor
    */
   public function __construct($mode, &$paymentProcessor) {
     $this->_mode = $mode;
     $this->_paymentProcessor = $paymentProcessor;
-    $this->_processorName = ts('Dummy Processor');
   }
 
   /**
-   * Submit a payment using Advanced Integration Method.
+   * @param array|PropertyBag $params
    *
-   * @param array $params
-   *   Assoc array of input parameters for this transaction.
+   * @param string $component
    *
    * @return array
-   *   the result in a nice formatted array (or an error object)
+   *   Result array (containing at least the key payment_status_id)
+   *
+   * @throws \Civi\Payment\Exception\PaymentProcessorException
    */
-  public function doDirectPayment(&$params) {
+  public function doPayment(&$params, $component = 'contribute') {
+    $this->_component = $component;
+    $statuses = CRM_Contribute_BAO_Contribution::buildOptions('contribution_status_id', 'validate');
+
+    $propertyBag = PropertyBag::cast($params);
+
+    // If we have a $0 amount, skip call to processor and set payment_status to Completed.
+    // Conceivably a processor might override this - perhaps for setting up a token - but we don't
+    // have an example of that at the mome.
+    if ($propertyBag->getAmount() == 0) {
+      $result['payment_status_id'] = array_search('Completed', $statuses);
+      $result['payment_status'] = 'Completed';
+      return $result;
+    }
+
     // Invoke hook_civicrm_paymentProcessor
     // In Dummy's case, there is no translation of parameters into
     // the back-end's canonical set of parameters.  But if a processor
     // does this, it needs to invoke this hook after it has done translation,
     // but before it actually starts talking to its proprietary back-end.
-    if (!empty($params['is_recur'])) {
-      $throwAnENoticeIfNotSetAsTheseAreRequired = $params['frequency_interval'] . $params['frequency_unit'];
+    if ($propertyBag->getIsRecur()) {
+      $throwAnENoticeIfNotSetAsTheseAreRequired = $propertyBag->getRecurFrequencyInterval() . $propertyBag->getRecurFrequencyUnit();
     }
     // no translation in Dummy processor
-    $cookedParams = $params;
-    CRM_Utils_Hook::alterPaymentProcessorParams($this,
-      $params,
-      $cookedParams
-    );
+    CRM_Utils_Hook::alterPaymentProcessorParams($this, $params, $propertyBag);
     // This means we can test failing transactions by setting a past year in expiry. A full expiry check would
     // be more complete.
     if (!empty($params['credit_card_exp_date']['Y']) && date('Y') >
       CRM_Core_Payment_Form::getCreditCardExpirationYear($params)) {
-      $error = new CRM_Core_Error(ts('transaction failed'));
-      return $error;
+      throw new PaymentProcessorException(ts('Invalid expiry date'));
     }
-    //end of hook invocation
+
     if (!empty($this->_doDirectPaymentResult)) {
       $result = $this->_doDirectPaymentResult;
+      if (empty($result['payment_status_id'])) {
+        $result['payment_status_id'] = array_search('Pending', $statuses);
+        $result['payment_status'] = 'Pending';
+      }
+      if ($result['payment_status_id'] === 'failed') {
+        throw new PaymentProcessorException($result['message'] ?? 'failed');
+      }
       $result['trxn_id'] = array_shift($this->_doDirectPaymentResult['trxn_id']);
       return $result;
     }
-    if ($this->_mode == 'test') {
-      $query = "SELECT MAX(trxn_id) FROM civicrm_contribution WHERE trxn_id LIKE 'test\\_%'";
-      $p = array();
-      $trxn_id = strval(CRM_Core_Dao::singleValueQuery($query, $p));
-      $trxn_id = str_replace('test_', '', $trxn_id);
-      $trxn_id = intval($trxn_id) + 1;
-      $params['trxn_id'] = 'test_' . $trxn_id . '_' . uniqid();
-    }
-    else {
-      $query = "SELECT MAX(trxn_id) FROM civicrm_contribution WHERE trxn_id LIKE 'live_%'";
-      $p = array();
-      $trxn_id = strval(CRM_Core_Dao::singleValueQuery($query, $p));
-      $trxn_id = str_replace('live_', '', $trxn_id);
-      $trxn_id = intval($trxn_id) + 1;
-      $params['trxn_id'] = 'live_' . $trxn_id . '_' . uniqid();
-    }
-    $params['gross_amount'] = $params['amount'];
-    // Add a fee_amount so we can make sure fees are handled properly in underlying classes.
-    $params['fee_amount'] = 1.50;
-    $params['net_amount'] = $params['gross_amount'] - $params['fee_amount'];
 
-    return $params;
+    $result['trxn_id'] = $this->getTrxnID();
+
+    // Add a fee_amount so we can make sure fees are handled properly in underlying classes.
+    $result['fee_amount'] = 1.50;
+    $result['description'] = $this->getPaymentDescription($params);
+
+    if (!isset($result['payment_status_id'])) {
+      if (!empty($propertyBag->getIsRecur())) {
+        // See comment block.
+        $result['payment_status_id'] = array_search('Pending', $statuses);
+        $result['payment_status'] = 'Pending';
+      }
+      else {
+        $result['payment_status_id'] = array_search('Completed', $statuses);
+        $result['payment_status'] = 'Completed';
+      }
+    }
+
+    // We shouldn't do this but it saves us changing the `testPayNowPayment` test to actually test the contribution
+    // like it should.
+    $result = array_merge($params, $result);
+
+    return $result;
   }
 
   /**
-   * Are back office payments supported.
-   *
-   * E.g paypal standard won't permit you to enter a credit card associated with someone else's login.
+   * Does this payment processor support refund?
    *
    * @return bool
    */
-  protected function supportsLiveMode() {
+  public function supportsRefund() {
     return TRUE;
   }
 
   /**
-   * Generate error object.
+   * Supports altering future start dates.
    *
-   * Throwing exceptions is preferred over this.
-   *
-   * @param string $errorCode
-   * @param string $errorMessage
-   *
-   * @return CRM_Core_Error
-   *   Error object.
+   * @return bool
    */
-  public function &error($errorCode = NULL, $errorMessage = NULL) {
-    $e = CRM_Core_Error::singleton();
-    if ($errorCode) {
-      $e->push($errorCode, 0, NULL, $errorMessage);
-    }
-    else {
-      $e->push(9001, 0, NULL, 'Unknown System Error.');
-    }
-    return $e;
+  public function supportsFutureRecurStartDate() {
+    return TRUE;
   }
+
+  /**
+   * Submit a refund payment
+   *
+   * @throws \Civi\Payment\Exception\PaymentProcessorException
+   *
+   * @param array $params
+   *   Assoc array of input parameters for this transaction.
+   */
+  public function doRefund(&$params) {}
 
   /**
    * This function checks to see if we have the right config values.
@@ -195,7 +198,58 @@ class CRM_Core_Payment_Dummy extends CRM_Core_Payment {
    * @return array
    */
   public function getEditableRecurringScheduleFields() {
-    return array('amount', 'next_sched_contribution_date');
+    return ['amount', 'next_sched_contribution_date'];
+  }
+
+  /**
+   * Does this processor support cancelling recurring contributions through code.
+   *
+   * If the processor returns true it must be possible to take action from within CiviCRM
+   * that will result in no further payments being processed. In the case of token processors (e.g
+   * IATS, eWay) updating the contribution_recur table is probably sufficient.
+   *
+   * @return bool
+   */
+  protected function supportsCancelRecurring() {
+    return TRUE;
+  }
+
+  /**
+   * Cancel a recurring subscription.
+   *
+   * Payment processor classes should override this rather than implementing cancelSubscription.
+   *
+   * A PaymentProcessorException should be thrown if the update of the contribution_recur
+   * record should not proceed (in many cases this function does nothing
+   * as the payment processor does not need to take any action & this should silently
+   * proceed. Note the form layer will only call this after calling
+   * $processor->supports('cancelRecurring');
+   *
+   * @param \Civi\Payment\PropertyBag $propertyBag
+   *
+   * @return array
+   *
+   * @throws \Civi\Payment\Exception\PaymentProcessorException
+   */
+  public function doCancelRecurring(PropertyBag $propertyBag) {
+    return ['message' => ts('Recurring contribution cancelled')];
+  }
+
+  /**
+   * Get a value for the transaction ID.
+   *
+   * Value is made up of the max existing value + a random string.
+   *
+   * Note the random string is likely a historical workaround.
+   *
+   * @return string
+   */
+  protected function getTrxnID() {
+    $string = $this->_mode;
+    $trxn_id = CRM_Core_DAO::singleValueQuery("SELECT MAX(trxn_id) FROM civicrm_contribution WHERE trxn_id LIKE '{$string}_%'");
+    $trxn_id = str_replace($string, '', $trxn_id);
+    $trxn_id = (int) $trxn_id + 1;
+    return $string . '_' . $trxn_id . '_' . uniqid();
   }
 
 }

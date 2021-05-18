@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {* This template is used for adding/scheduling reminders.  *}
@@ -29,7 +13,7 @@
 
 {if $action eq 8}
   <div class="messages status no-popup">
-      <div class="icon inform-icon"></div>
+      {icon icon="fa-info-circle"}{/icon}
         {ts 1=$reminderName}WARNING: You are about to delete the Reminder titled <strong>%1</strong>.{/ts} {ts}Do you want to continue?{/ts}
   </div>
 {else}
@@ -44,7 +28,7 @@
 
     <tr class="crm-scheduleReminder-form-block-when">
         <td class="right">{$form.start_action_offset.label}</td>
-        <td colspan="3">{include file="CRM/common/jcalendar.tpl" elementName=absolute_date} <strong id='OR'>OR</strong><br /></td>
+        <td colspan="3">{$form.absolute_date.html} <strong id='OR'>OR</strong><br /></td>
     </tr>
 
     <tr id="relativeDate" class="crm-scheduleReminder-form-block-description">
@@ -122,7 +106,11 @@
          </tr>
          <tr class="crm-scheduleReminder-form-block-subject">
             <td class="label">{$form.subject.label}</td>
-            <td>{$form.subject.html}</td>
+            <td>
+              {$form.subject.html|crmAddClass:huge}
+              <input class="crm-token-selector big" data-field="subject" />
+              {help id="id-token-subject" tplFile=$tplFile isAdmin=$isAdmin file="CRM/Contact/Form/Task/Email.hlp"}
+            </td>
          </tr>
        </table>
        {include file="CRM/Contact/Form/Task/EmailCommon.tpl" upload=1 noAttach=1}

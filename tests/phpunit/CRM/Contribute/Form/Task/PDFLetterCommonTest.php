@@ -1,27 +1,11 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
@@ -34,14 +18,11 @@
  */
 class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
 
-  /**
-   * Assume empty database with just civicrm_data.
-   */
   protected $_individualId;
 
-  protected $_docTypes = NULL;
+  protected $_docTypes;
 
-  protected $_contactIds = NULL;
+  protected $_contactIds;
 
   /**
    * Count how many times the hookTokens is called.
@@ -52,68 +33,127 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
    */
   protected $hookTokensCalled = 0;
 
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
-    $this->_individualId = $this->individualCreate(array('first_name' => 'Anthony', 'last_name' => 'Collins'));
+    $this->_individualId = $this->individualCreate(['first_name' => 'Anthony', 'last_name' => 'Collins']);
     $this->_docTypes = CRM_Core_SelectValues::documentApplicationType();
   }
 
   /**
    * Clean up after each test.
+   *
+   * @throws \CRM_Core_Exception
    */
-  public function tearDown() {
+  public function tearDown(): void {
     $this->quickCleanUpFinancialEntities();
-    $this->quickCleanup(array('civicrm_uf_match'));
+    $this->quickCleanup(['civicrm_uf_match']);
     CRM_Utils_Hook::singleton()->reset();
   }
 
   /**
-   * Test the buildContributionArray function.
+   * Test thank you send with grouping.
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
    */
-  public function testBuildContributionArray() {
+  public function testGroupedThankYous(): void {
+    $this->ids['Contact'][0] = $this->individualCreate();
+    $this->createLoggedInUser();
+    $contribution1ID = $this->callAPISuccess('Contribution', 'create', [
+      'contact_id' => $this->ids['Contact'][0],
+      'total_amount' => '60',
+      'financial_type_id' => 'Donation',
+      'currency' => 'USD',
+      'receive_date' => '2021-01-01 13:21',
+    ])['id'];
+    $contribution2ID = $this->callAPISuccess('Contribution', 'create', [
+      'contact_id' => $this->ids['Contact'][0],
+      'total_amount' => '70',
+      'financial_type_id' => 'Donation',
+      'receive_date' => '2021-02-01 2:21',
+      'currency' => 'USD',
+    ])['id'];
+    $form = $this->getFormObject('CRM_Contribute_Form_Task_PDFLetter', [
+      'campaign_id' => '',
+      'subject' => '',
+      'format_id' => '',
+      'paper_size' => 'letter',
+      'orientation' => 'portrait',
+      'metric' => 'in',
+      'margin_left' => '0.75',
+      'margin_right' => '0.75',
+      'margin_top' => '0.75',
+      'margin_bottom' => '0.75',
+      'document_type' => 'pdf',
+      'html_message' => '{contribution.currency} * {contribution.total_amount} * {contribution.receive_date}',
+      'template' => '',
+      'saveTemplateName' => '',
+      'from_email_address' => '185',
+      'thankyou_update' => '1',
+      'group_by' => 'contact_id',
+      'group_by_separator' => 'comma',
+      'email_options' => '',
+    ]);
+    $this->setSearchSelection([$contribution1ID, $contribution2ID], $form);
+    $form->preProcess();
+    try {
+      $form->postProcess();
+    }
+    catch (CRM_Core_Exception_PrematureExitException $e) {
+      $this->assertContains('USD, USD * $ 60.00, $ 70.00 * January 1st, 2021  1:21 PM, February 1st, 2021  2:21 AM', $e->errorData['html']);
+    }
+  }
+
+  /**
+   * Test the buildContributionArray function.
+   *
+   * @throws \CRM_Core_Exception|\CiviCRM_API3_Exception
+   */
+  public function testBuildContributionArray(): void {
     $this->_individualId = $this->individualCreate();
 
-    $customGroup = $this->callAPISuccess('CustomGroup', 'create', array(
+    $customGroup = $this->callAPISuccess('CustomGroup', 'create', [
       'title' => 'Test Custom Set for Contribution',
       'extends' => 'Contribution',
       'is_active' => TRUE,
-    ));
-    $params = array(
+    ]);
+    $params = [
       'custom_group_id' => $customGroup['id'],
       'label' => 'Text field',
       'html_type' => 'Text',
       'data_type' => 'String',
       'weight' => 1,
       'is_active' => 1,
-    );
+    ];
     $customField = $this->callAPISuccess('CustomField', 'create', $params);
     $customFieldKey = 'custom_' . $customField['id'];
-    $campaignTitle = 'Test Campaign ' . substr(sha1(rand()), 0, 7);
+    $campaignTitle = 'Test Campaign ';
 
-    $params = array(
+    $params = [
       'contact_id' => $this->_individualId,
       'total_amount' => 6,
-      'campaign_id' => $this->campaignCreate(array('title' => $campaignTitle), FALSE),
+      'campaign_id' => $this->campaignCreate(['title' => $campaignTitle], FALSE),
       'financial_type_id' => 'Donation',
       $customFieldKey => 'Text_' . substr(sha1(rand()), 0, 7),
-    );
-    $contributionIDs = $returnProperties = array();
+    ];
+    $contributionIDs = $returnProperties = [];
     $result = $this->callAPISuccess('Contribution', 'create', $params);
     $contributionIDs[] = $result['id'];
-    $this->hookClass->setHook('civicrm_tokenValues', array($this, 'hookTokenValues'));
+    $this->hookClass->setHook('civicrm_tokenValues', [$this, 'hookTokenValues']);
 
     // assume that there are two token {contribution.financial_type} and
     // {contribution.custom_N} in message content
-    $messageToken = array(
-      'contribution' => array(
+    $messageToken = [
+      'contribution' => [
         'financial_type',
         'payment_instrument',
         'campaign',
         $customFieldKey,
-      ),
-    );
+      ],
+    ];
 
-    list($contributions, $contacts) = CRM_Contribute_Form_Task_PDFLetterCommon::buildContributionArray('contact_id', $contributionIDs, $returnProperties, TRUE, TRUE, $messageToken, 'test', '**', FALSE);
+    $form = $this->getFormObject('CRM_Contribute_Form_Task_PDFLetter');
+    [$contributions, $contacts] = $form->buildContributionArray('contact_id', $contributionIDs, $returnProperties, TRUE, TRUE, $messageToken, 'test', '**', FALSE);
 
     $this->assertEquals('Anthony', $contacts[$this->_individualId]['first_name']);
     $this->assertEquals('emo', $contacts[$this->_individualId]['favourite_emoticon']);
@@ -136,7 +176,7 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
    * @param array $tokens
    * @param string $className
    */
-  public function hookTokenValues(&$details, $contactIDs, $jobID, $tokens, $className) {
+  public function hookTokenValues(&$details, $contactIDs, $jobID, $tokens, $className): void {
     foreach ($details as $index => $detail) {
       $details[$index]['favourite_emoticon'] = 'emo';
     }
@@ -145,40 +185,38 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
   /**
    * Test contribution token replacement in
    * html returned by postProcess function.
+   *
+   * @throws \CiviCRM_API3_Exception
+   * @throws \CRM_Core_Exception
    */
-  public function testPostProcess() {
-    $this->createLoggedInUser();
-    $this->_individualId = $this->individualCreate();
-    foreach (array('docx', 'odt') as $docType) {
-      $formValues = array(
+  public function testPostProcess(): void {
+    $this->createLoggedInUser();;
+    foreach (['docx', 'odt'] as $docType) {
+      $formValues = [
         'is_unit_test' => TRUE,
         'group_by' => NULL,
-        'document_file' => array(
+        'document_file' => [
           'name' => __DIR__ . "/sample_documents/Template.$docType",
           'type' => $this->_docTypes[$docType],
-        ),
-      );
+        ],
+      ];
 
-      $contributionParams = array(
-        'contact_id' => $this->_individualId,
-        'total_amount' => 100,
-        'financial_type_id' => 'Donation',
-      );
-      $contribution = $this->callAPISuccess('Contribution', 'create', $contributionParams);
-      $contributionId = $contribution['id'];
-      $form = new CRM_Contribute_Form_Task_PDFLetter();
-      $form->setContributionIds(array($contributionId));
+      $contributionId = $this->createContribution();
+      /* @var $form CRM_Contribute_Form_Task_PDFLetter */
+      $form = $this->getFormObject('CRM_Contribute_Form_Task_PDFLetter', $formValues);
+      $form->setContributionIds([$contributionId]);
       $format = Civi::settings()->get('dateformatFull');
       $date = CRM_Utils_Date::getToday();
       $displayDate = CRM_Utils_Date::customFormat($date, $format);
 
-      $html = CRM_Contribute_Form_Task_PDFLetterCommon::postProcess($form, $formValues);
-      $expectedValues = array(
-        'Hello Anthony Collins',
+      $html = $form->postProcess();
+      $expectedValues = [
+        'Hello Anthony',
         '$ 100.00',
         $displayDate,
         'Donation',
-      );
+        'Domain Name - Default Domain Name',
+      ];
 
       foreach ($expectedValues as $val) {
         $this->assertTrue(strpos($html[$contributionId], $val) !== 0);
@@ -187,56 +225,85 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
   }
 
   /**
+   * Test that no notice or errors occur if no contribution tokens are requested.
+   *
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   */
+  public function testNoContributionTokens(): void {
+    $this->createLoggedInUser();
+    $formValues = [
+      'html_message' => '{contact.display_name}',
+      'document_type' => 'pdf',
+    ];
+    /* @var $form CRM_Contribute_Form_Task_PDFLetter */
+    $form = $this->getFormObject('CRM_Contribute_Form_Task_PDFLetter', $formValues);
+    $form->setContributionIds([$this->createContribution()]);
+    try {
+      $form->postProcess();
+    }
+    catch (CRM_Core_Exception_PrematureExitException $e) {
+      $html = $e->errorData['html'];
+    }
+    $this->assertStringContainsString('Mr. Anthony Anderson II', $html);
+  }
+
+  /**
    * Test assignment of variables when using the group by function.
    *
-   * We are looking to see that the contribution aggregate and contributions arrays reflect the most
-   * recent contact rather than a total aggregate, since we are using group by.
+   * We are looking to see that the contribution aggregate and contributions
+   * arrays reflect the most recent contact rather than a total aggregate,
+   * since we are using group by.
+   *
+   * @throws \CiviCRM_API3_Exception
+   * @throws \CRM_Core_Exception
    */
-  public function testPostProcessGroupByContact() {
+  public function testPostProcessGroupByContact(): void {
     $this->createLoggedInUser();
-    $this->hookClass->setHook('civicrm_tokenValues', array($this, 'hook_aggregateTokenValues'));
-    $this->hookClass->setHook('civicrm_tokens', array($this, 'hook_tokens'));
+    $this->hookClass->setHook('civicrm_tokenValues', [$this, 'hook_aggregateTokenValues']);
+    $this->hookClass->setHook('civicrm_tokens', [$this, 'hook_tokens']);
     $this->mut = new CiviMailUtils($this, TRUE);
     $this->_individualId = $this->individualCreate();
     $this->_individualId2 = $this->individualCreate();
     $htmlMessage = "{aggregate.rendered_token}";
-    $formValues = array(
+    $formValues = [
       'is_unit_test' => TRUE,
       'group_by' => 'contact_id',
       'html_message' => $htmlMessage,
       'email_options' => 'both',
       'subject' => 'Testy test test',
       'from' => 'info@example.com',
-    );
+    ];
 
-    $contributionIDs = array();
-    $contribution = $this->callAPISuccess('Contribution', 'create', array(
+    $contributionIDs = [];
+    $contribution = $this->callAPISuccess('Contribution', 'create', [
       'contact_id' => $this->_individualId,
       'total_amount' => 100,
       'financial_type_id' => 'Donation',
       'receive_date' => '2016-12-25',
-    ));
+    ]);
     $contributionIDs[] = $contribution['id'];
-    $contribution = $this->callAPISuccess('Contribution', 'create', array(
+    $contribution = $this->callAPISuccess('Contribution', 'create', [
       'contact_id' => $this->_individualId2,
       'total_amount' => 10,
       'financial_type_id' => 'Donation',
       'receive_date' => '2016-12-25',
-    ));
+    ]);
     $contributionIDs[] = $contribution['id'];
 
-    $contribution = $this->callAPISuccess('Contribution', 'create', array(
+    $contribution = $this->callAPISuccess('Contribution', 'create', [
       'contact_id' => $this->_individualId2,
       'total_amount' => 1,
       'financial_type_id' => 'Donation',
       'receive_date' => '2016-12-25',
-    ));
+    ]);
     $contributionIDs[] = $contribution['id'];
 
-    $form = new CRM_Contribute_Form_Task_PDFLetter();
+    /* @var \CRM_Contribute_Form_Task_PDFLetter $form */
+    $form = $this->getFormObject('CRM_Contribute_Form_Task_PDFLetter', $formValues);
     $form->setContributionIds($contributionIDs);
 
-    $html = CRM_Contribute_Form_Task_PDFLetterCommon::postProcess($form, $formValues);
+    $html = $form->postProcess();
     $this->assertEquals("<table border='1' cellpadding='2' cellspacing='0' class='table'>
   <tbody>
   <tr>
@@ -254,7 +321,7 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
     <td></td>
   </tr>
   <!--
-    -->
+  -->
   <tr>
     <td><strong>Total</strong></td>
     <td><strong>$ 100.00</strong></td>
@@ -272,7 +339,7 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
     <th>Source</th>
   </tr>
   <!--
-    -->
+   -->
   <tr>
     <td>25 December 2016</td>
     <td>$ 10.00</td>
@@ -298,13 +365,15 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
   </tbody>
 </table>", $html[2]);
 
-    $activities = $this->callAPISuccess('Activity', 'get', array('activity_type_id' => 'Print PDF Letter', 'sequential' => 1));
+    $activities = $this->callAPISuccess('Activity', 'get', ['activity_type_id' => 'Print PDF Letter', 'sequential' => 1]);
     $this->assertEquals(2, $activities['count']);
     $this->assertEquals($html[1], $activities['values'][0]['details']);
     $this->assertEquals($html[2], $activities['values'][1]['details']);
     // Checking it is not called multiple times.
     // once for each contact create + once for the activities.
-    $this->assertEquals(3, $this->hookTokensCalled);
+    // & once for the token processor, for now.
+    // By calling the cached function we can get this down to 1
+    $this->assertEquals(4, $this->hookTokensCalled);
     $this->mut->checkAllMailLog($html);
 
   }
@@ -314,7 +383,7 @@ class CRM_Contribute_Form_Task_PDFLetterCommonTest extends CiviUnitTestCase {
    */
   public function hook_tokens(&$tokens) {
     $this->hookTokensCalled++;
-    $tokens['aggregate'] = array('rendered_token' => 'rendered_token');
+    $tokens['aggregate'] = ['rendered_token' => 'rendered_token'];
   }
 
   /**
@@ -368,7 +437,7 @@ value=$contact_aggregate+$contribution.total_amount}
    * @param array $tokens
    * @param null $context
    */
-  public function hook_aggregateTokenValues(&$values, $contactIDs, $job = NULL, $tokens = array(), $context = NULL) {
+  public function hook_aggregateTokenValues(&$values, $contactIDs, $job = NULL, $tokens = [], $context = NULL) {
     foreach ($contactIDs as $contactID) {
       CRM_Core_Smarty::singleton()->assign('messageContactID', $contactID);
       $values[$contactID]['aggregate.rendered_token'] = CRM_Core_Smarty::singleton()
@@ -386,7 +455,7 @@ value=$contact_aggregate+$contribution.total_amount}
    */
   public function testIsHtmlTokenInTableCell($token, $entity, $textToSearch, $expected) {
     $this->assertEquals($expected,
-      CRM_Contribute_Form_Task_PDFLetterCommon::isHtmlTokenInTableCell($token, $entity, $textToSearch)
+      CRM_Contribute_Form_Task_PDFLetter::isHtmlTokenInTableCell($token, $entity, $textToSearch)
     );
   }
 
@@ -448,6 +517,35 @@ value=$contact_aggregate+$contribution.total_amount}
       ],
 
     ];
+  }
+
+  /**
+   * @param array $entities
+   * @param \CRM_Core_Form $form
+   */
+  protected function setSearchSelection(array $entities, CRM_Core_Form $form): void {
+    $_SESSION['_' . $form->controller->_name . '_container']['values']['Search'] = [
+      'radio_ts' => 'ts_sel',
+    ];
+    foreach ($entities as $entityID) {
+      $_SESSION['_' . $form->controller->_name . '_container']['values']['Search']['mark_x_' . $entityID] = TRUE;
+    }
+  }
+
+  /**
+   * @return mixed
+   * @throws \CRM_Core_Exception
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function createContribution() {
+    $contributionParams = [
+      'contact_id' => $this->individualCreate(),
+      'total_amount' => 100,
+      'financial_type_id' => 'Donation',
+    ];
+    $contribution = $this->callAPISuccess('Contribution', 'create', $contributionParams);
+    $contributionId = $contribution['id'];
+    return $contributionId;
   }
 
 }

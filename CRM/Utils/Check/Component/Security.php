@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
 
@@ -36,12 +20,16 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
    * CMS have a different pattern to their default file path and URL.
    *
    * @todo Use Civi::paths instead?
+   * @return string
    */
   public function getFilePathMarker() {
     $config = CRM_Core_Config::singleton();
     switch ($config->userFramework) {
       case 'Joomla':
         return '/media/';
+
+      case 'WordPress':
+        return '/uploads/';
 
       default:
         return '/files/';
@@ -63,12 +51,11 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
    * is browseable or visible to search engines; it means it can be
    * requested directly.
    *
-   * @return array
-   *   Array of messages
+   * @return CRM_Utils_Check_Message[]
    * @see CRM-14091
    */
   public function checkLogFileIsNotAccessible() {
-    $messages = array();
+    $messages = [];
 
     $config = CRM_Core_Config::singleton();
 
@@ -86,15 +73,14 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
         if (count($log_path) > 1) {
           $url[] = $log_path[1];
           $log_url = implode($filePathMarker, $url);
-          $headers = @get_headers($log_url);
-          if (stripos($headers[0], '200')) {
-            $docs_url = $this->createDocUrl('checkLogFileIsNotAccessible');
+          if ($this->fileExists($log_url)) {
+            $docs_url = $this->createDocUrl('the-log-file-should-not-be-accessible');
             $msg = 'The <a href="%1">CiviCRM debug log</a> should not be downloadable.'
               . '<br />' .
               '<a href="%2">Read more about this warning</a>';
             $messages[] = new CRM_Utils_Check_Message(
               __FUNCTION__,
-              ts($msg, array(1 => $log_url, 2 => $docs_url)),
+              ts($msg, [1 => $log_url, 2 => $docs_url]),
               ts('Security Warning'),
               \Psr\Log\LogLevel::WARNING,
               'fa-lock'
@@ -117,20 +103,19 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
    * Being retrievable doesn't mean the files are browseable or visible
    * to search engines; it only means they can be requested directly.
    *
-   * @return array
-   *   Array of messages
+   * @return CRM_Utils_Check_Message[]
    * @see CRM-14091
    *
    * @todo Test with WordPress, Joomla.
    */
   public function checkUploadsAreNotAccessible() {
-    $messages = array();
+    $messages = [];
 
     $config = CRM_Core_Config::singleton();
-    $privateDirs = array(
+    $privateDirs = [
       $config->uploadDir,
       $config->customFileUploadDir,
-    );
+    ];
 
     foreach ($privateDirs as $privateDir) {
       $heuristicUrl = $this->guessUrl($privateDir);
@@ -140,14 +125,14 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
           ts('Files in the data directory (<a href="%3">%2</a>) should not be downloadable.'
             . '<br />'
             . '<a href="%1">Read more about this warning</a>',
-            array(
-              1 => $this->createDocUrl('checkUploadsAreNotAccessible'),
+            [
+              1 => $this->createDocUrl('uploads-should-not-be-accessible'),
               2 => $privateDir,
               3 => $heuristicUrl,
-            )),
-          ts('Private Files Readable'),
-          \Psr\Log\LogLevel::WARNING,
-          'fa-lock'
+            ]),
+            ts('Private Files Readable'),
+            \Psr\Log\LogLevel::WARNING,
+            'fa-lock'
         );
       }
     }
@@ -165,18 +150,17 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
    * MAY trigger false positives (if you have files named 'a', 'e'
    * we'll probably match that).
    *
-   * @return array
-   *   Array of messages
+   * @return CRM_Utils_Check_Message[]
    * @see CRM-14091
    *
    * @todo Test with WordPress, Joomla.
    */
   public function checkDirectoriesAreNotBrowseable() {
-    $messages = array();
+    $messages = [];
     $config = CRM_Core_Config::singleton();
-    $publicDirs = array(
+    $publicDirs = [
       $config->imageUploadDir => $config->imageUploadURL,
-    );
+    ];
 
     // Setup index.html files to prevent browsing
     foreach ($publicDirs as $publicDir => $publicUrl) {
@@ -189,10 +173,10 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
         $msg = 'Directory <a href="%1">%2</a> should not be browseable via the web.'
           . '<br />' .
           '<a href="%3">Read more about this warning</a>';
-        $docs_url = $this->createDocUrl('checkDirectoriesAreNotBrowseable');
+        $docs_url = $this->createDocUrl('directories-should-not-be-browsable');
         $messages[] = new CRM_Utils_Check_Message(
           __FUNCTION__,
-          ts($msg, array(1 => $publicDir, 2 => $publicDir, 3 => $docs_url)),
+          ts($msg, [1 => $publicDir, 2 => $publicDir, 3 => $docs_url]),
           ts('Browseable Directories'),
           \Psr\Log\LogLevel::ERROR,
           'fa-lock'
@@ -203,50 +187,50 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
     return $messages;
   }
 
-
   /**
    * Check that some files are not present.
    *
    * These files have generally been deleted but Civi source tree but could be
    * left online if one does a faulty upgrade.
    *
-   * @return array of messages
+   * @return CRM_Utils_Check_Message[]
    */
   public function checkFilesAreNotPresent() {
-    global $civicrm_root;
+    $packages_path = rtrim(\Civi::paths()->getPath('[civicrm.packages]/'), '/' . DIRECTORY_SEPARATOR);
+    $vendor_path = rtrim(\Civi::paths()->getPath('[civicrm.vendor]/'), '/' . DIRECTORY_SEPARATOR);
 
-    $messages = array();
-    $files = array(
-      array(
+    $messages = [];
+    $files = [
+      [
         // CRM-16005, upgraded from Civi <= 4.5.6
-        "{$civicrm_root}/packages/dompdf/dompdf.php",
+        "{$packages_path}/dompdf/dompdf.php",
         \Psr\Log\LogLevel::CRITICAL,
-      ),
-      array(
+      ],
+      [
         // CRM-16005, Civi >= 4.5.7
-        "{$civicrm_root}/packages/vendor/dompdf/dompdf/dompdf.php",
+        "{$packages_path}/vendor/dompdf/dompdf/dompdf.php",
         \Psr\Log\LogLevel::CRITICAL,
-      ),
-      array(
+      ],
+      [
         // CRM-16005, Civi >= 4.6.0
-        "{$civicrm_root}/vendor/dompdf/dompdf/dompdf.php",
+        "{$vendor_path}/dompdf/dompdf/dompdf.php",
         \Psr\Log\LogLevel::CRITICAL,
-      ),
-      array(
+      ],
+      [
         // CIVI-SA-2013-001
-        "{$civicrm_root}/packages/OpenFlashChart/php-ofc-library/ofc_upload_image.php",
+        "{$packages_path}/OpenFlashChart/php-ofc-library/ofc_upload_image.php",
         \Psr\Log\LogLevel::CRITICAL,
-      ),
-      array(
-        "{$civicrm_root}/packages/html2text/class.html2text.inc",
+      ],
+      [
+        "{$packages_path}/html2text/class.html2text.inc",
         \Psr\Log\LogLevel::CRITICAL,
-      ),
-    );
+      ],
+    ];
     foreach ($files as $file) {
       if (file_exists($file[0])) {
         $messages[] = new CRM_Utils_Check_Message(
           __FUNCTION__,
-          ts('File \'%1\' presents a security risk and should be deleted.', array(1 => $file[0])),
+          ts('File \'%1\' presents a security risk and should be deleted.', [1 => $file[0]]),
           ts('Unsafe Files'),
           $file[1],
           'fa-lock'
@@ -258,15 +242,16 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
 
   /**
    * Discourage use of remote profile forms.
+   * @return CRM_Utils_Check_Message[]
    */
   public function checkRemoteProfile() {
-    $messages = array();
+    $messages = [];
 
     if (Civi::settings()->get('remote_profile_submissions')) {
       $messages[] = new CRM_Utils_Check_Message(
         __FUNCTION__,
         ts('Warning: External profile support (aka "HTML Snippet" support) is enabled in <a href="%1">system settings</a>. This setting may be prone to abuse. If you must retain it, consider HTTP throttling or other protections.',
-          array(1 => CRM_Utils_System::url('civicrm/admin/setting/misc', 'reset=1'))
+          [1 => CRM_Utils_System::url('civicrm/admin/setting/misc', 'reset=1')]
         ),
         ts('Remote Profiles Enabled'),
         \Psr\Log\LogLevel::WARNING,
@@ -277,13 +262,12 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
     return $messages;
   }
 
-
   /**
-   * Check that the sysadmin has not modified the Cxn
-   * security setup.
+   * Check that the sysadmin has not modified the Cxn security setup.
+   * @return CRM_Utils_Check_Message[]
    */
   public function checkCxnOverrides() {
-    $list = array();
+    $list = [];
     if (defined('CIVICRM_CXN_CA') && CIVICRM_CXN_CA !== 'CiviRootCA') {
       $list[] = 'CIVICRM_CXN_CA';
     }
@@ -291,14 +275,14 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
       $list[] = 'CIVICRM_CXN_APPS_URL';
     }
 
-    $messages = array();
+    $messages = [];
 
     if (!empty($list)) {
       $messages[] = new CRM_Utils_Check_Message(
         __FUNCTION__,
-        ts('The system administrator has disabled security settings (%1). Connections to remote applications are insecure.', array(
+        ts('The system administrator has disabled security settings (%1). Connections to remote applications are insecure.', [
           1 => implode(', ', $list),
-        )),
+        ]),
         ts('Security Warning'),
         \Psr\Log\LogLevel::WARNING,
         'fa-lock'
@@ -365,8 +349,7 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
       return FALSE;
     }
 
-    $headers = @get_headers("$url/$file");
-    if (stripos($headers[0], '200')) {
+    if ($this->fileExists("$url/$file")) {
       $content = @file_get_contents("$url/$file");
       if (preg_match('/delete me/', $content)) {
         $result = TRUE;
@@ -384,7 +367,7 @@ class CRM_Utils_Check_Component_Security extends CRM_Utils_Check_Component {
    * @return string
    */
   public function createDocUrl($topic) {
-    return CRM_Utils_System::getWikiBaseURL() . $topic;
+    return CRM_Utils_System::docURL2('sysadmin/setup/security#' . $topic, TRUE);
   }
 
   /**

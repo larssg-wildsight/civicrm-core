@@ -1,9 +1,9 @@
 // https://civicrm.org/licensing
 /**
- * @see https://wiki.civicrm.org/confluence/display/CRMDOC/AJAX+Interface
- * @see https://wiki.civicrm.org/confluence/display/CRMDOC/Ajax+Pages+and+Forms
+ * @see https://docs.civicrm.org/dev/en/latest/api/interfaces/#ajax
+ * @see https://docs.civicrm.org/dev/en/latest/framework/ajax/
  */
-(function($, CRM, undefined) {
+(function($, CRM, _, undefined) {
   /**
    * @param string path
    * @param string|object query
@@ -22,14 +22,19 @@
       mode = CRM.config && CRM.config.isFrontend ? 'front' : 'back';
     }
     query = query || '';
-    var frag = path.split('?');
-    var url = tplURL[mode].replace("*path*", frag[0]);
-
-    if (!query) {
-      url = url.replace(/[?&]\*query\*/, '');
+    var url,
+      frag = path.split('?');
+    // Encode url path only if slashes in placeholder were also encoded
+    if (tplURL[mode].indexOf('civicrm/placeholder-url-path') >= 0) {
+      url = tplURL[mode].replace('civicrm/placeholder-url-path', frag[0]);
+    } else {
+      url = tplURL[mode].replace('civicrm%2Fplaceholder-url-path', encodeURIComponent(frag[0]));
     }
-    else {
-      url = url.replace("*query*", typeof query === 'string' ? query : $.param(query));
+
+    if (_.isEmpty(query)) {
+      url = url.replace(/[?&]civicrm-placeholder-url-query=1/, '');
+    } else {
+      url = url.replace('civicrm-placeholder-url-query=1', typeof query === 'string' ? query : $.param(query));
     }
     if (frag[1]) {
       url += (url.indexOf('?') < 0 ? '?' : '&') + frag[1];
@@ -45,9 +50,51 @@
     });
   };
 
+  // result is an array, but in js, an array is also an object
+  // Assign all the metadata properties to it, mirroring the results arrayObject in php
+  function arrayObject(data) {
+    var result = data.values || [];
+    if (_.isArray(result)) {
+      delete(data.values);
+      _.assign(result, data);
+    }
+    return result;
+  }
+
+  // https://docs.civicrm.org/dev/en/latest/api/interfaces/#ajax
+  CRM.api4 = function(entity, action, params, index) {
+    return new Promise(function(resolve, reject) {
+      if (typeof entity === 'string') {
+        $.post(CRM.url('civicrm/ajax/api4/' + entity + '/' + action), {
+          params: JSON.stringify(params),
+          index: index
+        })
+          .done(function (data) {
+            resolve(arrayObject(data));
+          })
+          .fail(function (data) {
+            reject(data.responseJSON);
+          });
+      } else {
+        $.post(CRM.url('civicrm/ajax/api4'), {
+          calls: JSON.stringify(entity)
+        })
+          .done(function(data) {
+            _.each(data, function(item, key) {
+              data[key] = arrayObject(item);
+            });
+            resolve(data);
+          })
+          .fail(function (data) {
+            reject(data.responseJSON);
+          });
+      }
+    });
+  };
+
   /**
    * AJAX api
-   * @link http://wiki.civicrm.org/confluence/display/CRMDOC/AJAX+Interface#AJAXInterface-CRM.api3
+   * @link https://docs.civicrm.org/dev/en/latest/api/interfaces/#ajax
    */
   CRM.api3 = function(entity, action, params, status) {
     if (typeof(entity) === 'string') {
@@ -68,7 +115,7 @@
       url: CRM.url('civicrm/ajax/rest'),
       dataType: 'json',
       data: params,
-      type: params.action.indexOf('get') < 0 ? 'POST' : 'GET'
+      type: params.action.indexOf('get') === 0 ? 'GET' : 'POST'
     });
     if (status) {
       // Default status messages
@@ -164,11 +211,11 @@
         return false;
       }
       // Compare arguments
-      $.each(newUrl.split('?')[1].split('&'), function(k, v) {
+      $.each((newUrl.split('?')[1] || '').split('&'), function(k, v) {
         var arg = v.split('=');
         args[arg[0]] = arg[1];
       });
-      $.each(oldUrl.split('?')[1].split('&'), function(k, v) {
+      $.each((oldUrl.split('?')[1] || '').split('&'), function(k, v) {
         var arg = v.split('=');
         if (args[arg[0]] !== undefined && arg[1] !== args[arg[0]]) {
           same = false;
@@ -456,7 +503,7 @@
         var buttonContainers = '.crm-submit-buttons, .action-link',
           buttons = [],
           added = [];
-        $(buttonContainers, $el).find('input.crm-form-submit, a.button').each(function() {
+        $(buttonContainers, $el).find('.crm-form-submit, .crm-form-xbutton, a.button, button').each(function() {
           var $el = $(this),
             label = $el.is('input') ? $el.attr('value') : $el.text(),
             identifier = $el.attr('name') || $el.attr('href');
@@ -475,12 +522,12 @@
             added.push(identifier);
           }
           // display:none causes the form to not submit when pressing "enter"
-          $el.parents(buttonContainers).css({height: 0, padding: 0, margin: 0, overflow: 'hidden'}).find('.crm-button-icon').hide();
+          $el.parents(buttonContainers).css({height: 0, padding: 0, margin: 0, overflow: 'hidden'});
         });
         $el.dialog('option', 'buttons', buttons);
       }
       // Allow a button to prevent ajax submit
-      $('input[data-no-ajax-submit=true]').click(function() {
+      $('input[data-no-ajax-submit=true], button[data-no-ajax-submit=true]').click(function() {
         $(this).closest('form').ajaxFormUnbind();
       });
       // For convenience, focus the first field
@@ -572,8 +619,11 @@
           var currentHeight = $wrapper.outerHeight(),
             padding = currentHeight - $dialog.height(),
             newHeight = $dialog.prop('scrollHeight') + padding,
-            menuHeight = $('#civicrm-menu').outerHeight(),
-            maxHeight = $(window).height() - menuHeight;
+            menuHeight = $('#civicrm-menu').outerHeight();
+          if ($('body').hasClass('crm-menubar-below-cms-menu')) {
+            menuHeight += $('#civicrm-menu').offset().top;
+          }
+          var maxHeight = $(window).height() - menuHeight;
           newHeight = newHeight > maxHeight ? maxHeight : newHeight;
           if (newHeight > (currentHeight + 15)) {
             $dialog.dialog('option', {
@@ -585,4 +635,4 @@
       });
   });
 
-}(jQuery, CRM));
+}(jQuery, CRM, _));

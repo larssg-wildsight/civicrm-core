@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {if $action eq 2 || $action eq 16}
@@ -123,31 +107,31 @@
 {elseif $context eq 'conflicts'}
   {if call_user_func(array('CRM_Core_Permission','check'), 'force merge duplicate contacts')}
      {capture assign=backURL}{crmURL p="civicrm/contact/dedupemerge" q="`$urlQuery`&action=map&mode=aggressive" a=1}{/capture}
-     <a href="{$backURL}" title="{ts}Force Merge Selected Duplicates{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the selected duplicates. The operation will run in force merge mode - all selected duplicates will be merged into main contacts even in case of any conflicts. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-bolt"></i> {ts}Force Merge Selected Duplicates{/ts}</span></a>
+     <a href="{$backURL}" title="{ts}Force Merge Selected Duplicates{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the selected duplicates. The operation will run in force merge mode - all selected duplicates will be merged into main contacts even in case of any conflicts. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-bolt" aria-hidden="true"></i> {ts}Force Merge Selected Duplicates{/ts}</span></a>
 
      {capture assign=backURL}{crmURL p="civicrm/contact/dedupemerge" q="`$urlQuery`&action=map" a=1}{/capture}
-     <a href="{$backURL}" title="{ts}Safe Merge Selected Duplicates{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the selected duplicates. The operation will run in safe mode - only records with no direct data conflicts will be merged. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-compress"></i> {ts}Safe Merge Selected Duplicates{/ts}</span></a>
+     <a href="{$backURL}" title="{ts}Safe Merge Selected Duplicates{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the selected duplicates. The operation will run in safe mode - only records with no direct data conflicts will be merged. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-compress" aria-hidden="true"></i> {ts}Safe Merge Selected Duplicates{/ts}</span></a>
   {/if}
 
-  {capture assign=backURL}{crmURL p="civicrm/contact/dedupefind" q="`$urlQuery`&action=update" a=1}{/capture}
-   <a href="{$backURL}" title="{ts}List All Duplicates{/ts}" class="button"><span><i class="crm-i fa-refresh"></i> {ts}List All Duplicates{/ts}</span></a>
+  {capture assign=backURL}{crmURL p="civicrm/contact/dedupefind" q="`$urlQuery`&action=update&selected=0" a=1}{/capture}
+   <a href="{$backURL}" title="{ts}List All Duplicates{/ts}" class="button"><span><i class="crm-i fa-refresh" aria-hidden="true"></i> {ts}List All Duplicates{/ts}</span></a>
 {else}
    {capture assign=backURL}{crmURL p="civicrm/contact/dedupefind" q="`$urlQuery`&action=renew" a=1}{/capture}
    <a href="{$backURL}" title="{ts}Refresh List of Duplicates{/ts}" onclick="return confirm('{ts escape="js"}This will refresh the duplicates list. Click OK to proceed.{/ts}');" class="button">
-     <span><i class="crm-i fa-refresh"></i> {ts}Refresh Duplicates{/ts}</span>
+     <span><i class="crm-i fa-refresh" aria-hidden="true"></i> {ts}Refresh Duplicates{/ts}</span>
    </a>
 
   {capture assign=backURL}{crmURL p="civicrm/contact/dedupemerge" q="`$urlQuery`&action=map" a=1}{/capture}
-   <a href="{$backURL}" title="{ts}Batch Merge Duplicate Contacts{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the selected duplicates. The operation will run in safe mode - only records with no direct data conflicts will be merged. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-compress"></i> {ts}Batch Merge Selected Duplicates{/ts}</span></a>
+   <a href="{$backURL}" title="{ts}Batch Merge Duplicate Contacts{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the selected duplicates. The operation will run in safe mode - only records with no direct data conflicts will be merged. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-compress" aria-hidden="true"></i> {ts}Batch Merge Selected Duplicates{/ts}</span></a>
 
    {capture assign=backURL}{crmURL p="civicrm/contact/dedupemerge" q=$urlQuery a=1}{/capture}
-   <a href="{$backURL}" title="{ts}Batch Merge Duplicate Contacts{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the listed duplicates. The operation will run in safe mode - only records with no direct data conflicts will be merged. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-compress"></i> {ts}Batch Merge All Duplicates{/ts}</span></a>
+   <a href="{$backURL}" title="{ts}Batch Merge Duplicate Contacts{/ts}" onclick="return confirm('{ts escape="js"}This will run the batch merge process on the listed duplicates. The operation will run in safe mode - only records with no direct data conflicts will be merged. Click OK to proceed if you are sure you wish to run this operation.{/ts}');" class="button"><span><i class="crm-i fa-compress" aria-hidden="true"></i> {ts}Batch Merge All Duplicates{/ts}</span></a>
 
-   <a href='#' title="{ts}Flip Selected Duplicates{/ts}" class="crm-dedupe-flip-selections button"><span><i class="crm-i fa-exchange"></i> {ts}Flip Selected Duplicates{/ts}</span></a>
+   <a href='#' title="{ts}Flip Selected Duplicates{/ts}" class="crm-dedupe-flip-selections button"><span><i class="crm-i fa-exchange" aria-hidden="true"></i> {ts}Flip Selected Duplicates{/ts}</span></a>
 
    {capture assign=backURL}{crmURL p="civicrm/contact/deduperules" q="reset=1" a=1}{/capture}
    <a href="{$backURL}" class="button crm-button-type-cancel">
-     <span><i class="crm-i fa-times"></i> {ts}Done{/ts}</span>
+     <span><i class="crm-i fa-times" aria-hidden="true"></i> {ts}Done{/ts}</span>
    </a>
 {/if}
 <div style="clear: both;"></div>
@@ -162,7 +146,7 @@
   (function($) {
     CRM.$('table#dupePairs').data({
       "ajax": {
-        "url": {/literal}'{$sourceUrl}'{literal}
+        "url": {/literal}'{$sourceUrl}{if $isSelected}&selected=1{/if}'{literal}
       },
       "retrieve": true,
       "processing": true,
@@ -282,6 +266,7 @@
       });
 
       $(".crm-dedupe-flip-selections").on('click', function(e) {
+        e.preventDefault();
         var ids = [];
         $('.crm-row-selected').each(function() {
           var ele = CRM.$('input.crm-dedupe-select', this);
@@ -289,7 +274,8 @@
         });
         if (ids.length > 0) {
           var dataUrl = {/literal}"{crmURL p='civicrm/ajax/flipDupePairs' h=0 q='snippet=4'}"{literal};
-          CRM.$.post(dataUrl, {pnid: ids}, function (response) {
+          var request = $.post(dataUrl, {pnid: ids});
+          request.done(function(dt) {
             var mapper = {1:3, 2:4, 5:6, 7:8, 9:10}
             $('.crm-row-selected').each(function() {
               var idx = $('table#dupePairs').DataTable().row(this).index();
@@ -302,7 +288,7 @@
               // keep the checkbox checked if needed
               $('input.crm-dedupe-select', this).prop('checked', $(this).hasClass('crm-row-selected'));
             });
-          }, 'json');
+          });
         }
       });
     });
@@ -324,8 +310,7 @@
       var is_selected = CRM.$('.crm-dedupe-select-all').prop('checked') ? 1 : 0;
     }
 
-    var criteria = {/literal}'{$criteria|escape}'{literal};
-    criteria  = criteria.length > 0 ? criteria : 0;
+    var cacheKey = {/literal}'{$cacheKey|escape}'{literal};
 
     var dataUrl = {/literal}"{crmURL p='civicrm/ajax/toggleDedupeSelect' h=0 q='snippet=4'}"{literal};
     var rgid = {/literal}"{$rgid}"{literal};
@@ -334,7 +319,7 @@
     rgid = rgid.length > 0 ? rgid : 0;
     gid  = gid.length > 0 ? gid : 0;
 
-    CRM.$.post(dataUrl, {pnid: id, rgid: rgid, gid: gid, is_selected: is_selected, criteria : criteria}, function (data) {
+    CRM.$.post(dataUrl, {pnid: id, rgid: rgid, gid: gid, is_selected: is_selected, cacheKey : cacheKey}, function (data) {
       // nothing to do for now
     }, 'json');
   }

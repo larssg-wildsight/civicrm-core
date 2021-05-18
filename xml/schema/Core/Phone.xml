@@ -7,12 +7,17 @@
   <comment>Phone information for a specific location.</comment>
   <add>1.1</add>
   <log>true</log>
+  <icon>fa-phone</icon>
+  <labelField>phone</labelField>
   <field>
     <name>id</name>
     <title>Phone ID</title>
     <type>int unsigned</type>
     <required>true</required>
     <comment>Unique Phone ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>1.1</add>
   </field>
   <primaryKey>
@@ -21,9 +26,12 @@
   </primaryKey>
   <field>
     <name>contact_id</name>
-    <title>Phone Contact</title>
+    <title>Contact ID</title>
     <type>int unsigned</type>
     <comment>FK to Contact ID</comment>
+    <html>
+      <label>Contact</label>
+    </html>
     <add>2.0</add>
   </field>
   <foreignKey>
@@ -35,7 +43,7 @@
   </foreignKey>
   <field>
     <name>location_type_id</name>
-    <title>Phone Location Type</title>
+    <title>Location Type ID</title>
     <type>int unsigned</type>
     <comment>Which Location does this phone belong to.</comment>
     <pseudoconstant>
@@ -45,6 +53,7 @@
     </pseudoconstant>
     <html>
       <type>Select</type>
+      <label>Location Type</label>
     </html>
     <add>2.0</add>
   </field>
@@ -55,9 +64,12 @@
   </index>
   <field>
     <name>is_primary</name>
-    <title>Is Phone Primary?</title>
+    <title>Primary phone</title>
     <type>boolean</type>
     <default>0</default>
+    <html>
+      <type>Radio</type>
+    </html>
     <comment>Is this the primary phone for this contact and location.</comment>
     <add>1.1</add>
   </field>
@@ -102,6 +114,7 @@
     <add>1.1</add>
     <html>
       <type>Text</type>
+      <label>Phone</label>
     </html>
   </field>
   <field>
@@ -125,6 +138,9 @@
     <type>varchar</type>
     <length>32</length>
     <comment>Phone number stripped of all whitespace, letters, and punctuation.</comment>
+    <html>
+      <label>Numeric</label>
+    </html>
     <add>4.3</add>
   </field>
   <index>
@@ -133,25 +149,17 @@
     <add>4.3</add>
   </index>
   <field>
-    <name>phone_type</name>
-    <type>enum</type>
-    <values>Phone, Mobile, Fax, Pager</values>
-    <headerPattern>/phone\s+type/i</headerPattern>
-    <dataPattern>/phone|mobile|fax|pager/i</dataPattern>
-    <comment>What type of telecom device is this.</comment>
-    <add>1.1</add>
-    <drop>2.2</drop>
-  </field>
-  <field>
     <name>phone_type_id</name>
-    <title>Phone Type</title>
+    <title>Phone Type ID</title>
     <type>int unsigned</type>
+    <export>true</export>
     <comment>Which type of phone does this number belongs.</comment>
     <pseudoconstant>
       <optionGroupName>phone_type</optionGroupName>
     </pseudoconstant>
     <html>
       <type>Select</type>
+      <label>Phone Type</label>
     </html>
     <add>2.2</add>
   </field>

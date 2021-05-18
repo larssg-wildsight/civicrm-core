@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -44,11 +28,15 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
    * Fields may have keys
    *  - name (required to show in tpl from the array)
    *  - description (optional, will appear below the field)
+   *     Auto-added by setEntityFieldsMetadata unless specified here (use description => '' to hide)
    *  - not-auto-addable - this class will not attempt to add the field using addField.
    *    (this will be automatically set if the field does not have html in it's metadata
    *    or is not a core field on the form's entity).
    *  - help (option) add help to the field - e.g ['id' => 'id-source', 'file' => 'CRM/Contact/Form/Contact']]
    *  - template - use a field specific template to render this field
+   *  - required
+   *  - is_freeze (field should be frozen).
+   *
    * @var array
    */
   protected $entityFields = [];
@@ -60,17 +48,23 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
     $this->entityFields = [
       'label_a_b' => [
         'name' => 'label_a_b',
-        'description' => ts("Label for the relationship from Contact A to Contact B. EXAMPLE: Contact A is 'Parent of' Contact B.")
+        'description' => ts("Label for the relationship from Contact A to Contact B. EXAMPLE: Contact A is 'Parent of' Contact B."),
+        'required' => TRUE,
       ],
       'label_b_a' => [
         'name' => 'label_b_a',
-        'description' => ts("Label for the relationship from Contact B to Contact A. EXAMPLE: Contact B is 'Child of' Contact A. You may leave this blank for relationships where the name is the same in both directions (e.g. Spouse).")
+        'description' => ts("Label for the relationship from Contact B to Contact A. EXAMPLE: Contact B is 'Child of' Contact A. You may leave this blank for relationships where the name is the same in both directions (e.g. Spouse)."),
       ],
-      'description' => ['name' => 'description'],
+      'description' => [
+        'name' => 'description',
+        'description' => '',
+      ],
       'contact_types_a' => ['name' => 'contact_types_a', 'not-auto-addable' => TRUE],
       'contact_types_b' => ['name' => 'contact_types_b', 'not-auto-addable' => TRUE],
       'is_active' => ['name' => 'is_active'],
     ];
+
+    self::setEntityFieldsMetadata();
   }
 
   /**
@@ -100,6 +94,8 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
    * Build the form object.
    */
   public function buildQuickForm() {
+    $isReserved = ($this->_id && CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $this->_id, 'is_reserved'));
+    $this->entityFields['is_active']['is_freeze'] = $isReserved;
 
     self::buildQuickEntityForm();
     if ($this->_action & CRM_Core_Action::DELETE) {
@@ -107,32 +103,21 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
     }
 
     $this->addRule('label_a_b', ts('Label already exists in Database.'),
-      'objectExists', array('CRM_Contact_DAO_RelationshipType', $this->_id, 'label_a_b')
+      'objectExists', ['CRM_Contact_DAO_RelationshipType', $this->_id, 'label_a_b']
     );
     $this->addRule('label_b_a', ts('Label already exists in Database.'),
-      'objectExists', array('CRM_Contact_DAO_RelationshipType', $this->_id, 'label_b_a')
+      'objectExists', ['CRM_Contact_DAO_RelationshipType', $this->_id, 'label_b_a']
     );
 
     $contactTypes = CRM_Contact_BAO_ContactType::getSelectElements(FALSE, TRUE, '__');
-
-    // add select for contact type
-    $this->add('select', 'contact_types_a', ts('Contact Type A') . ' ',
-      array(
-        '' => ts('All Contacts'),
-      ) + $contactTypes
-    );
-    $this->add('select', 'contact_types_b', ts('Contact Type B') . ' ',
-      array(
-        '' => ts('All Contacts'),
-      ) + $contactTypes
-    );
-
-    //only selected field should be allow for edit, CRM-4888
-    if ($this->_id &&
-      CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_RelationshipType', $this->_id, 'is_reserved')
-    ) {
-      foreach (array('contactTypeA', 'contactTypeB', 'isActive') as $field) {
-        $$field->freeze();
+    foreach (['contact_types_a' => ts('Contact Type A'), 'contact_types_b' => ts('Contact Type B')] as $name => $label) {
+      $element = $this->add('select', $name, $label . ' ',
+        [
+          '' => ts('All Contacts'),
+        ] + $contactTypes
+      );
+      if ($isReserved) {
+        $element->freeze();
       }
     }
 
@@ -149,16 +134,16 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
     if ($this->_action != CRM_Core_Action::DELETE &&
       isset($this->_id)
     ) {
-      $defaults = $params = array();
-      $params = array('id' => $this->_id);
+      $defaults = $params = [];
+      $params = ['id' => $this->_id];
       $baoName = $this->_BAOName;
       $baoName::retrieve($params, $defaults);
-      $defaults['contact_types_a'] = CRM_Utils_Array::value('contact_type_a', $defaults);
+      $defaults['contact_types_a'] = $defaults['contact_type_a'] ?? NULL;
       if (!empty($defaults['contact_sub_type_a'])) {
         $defaults['contact_types_a'] .= '__' . $defaults['contact_sub_type_a'];
       }
 
-      $defaults['contact_types_b'] = CRM_Utils_Array::value('contact_type_b', $defaults);
+      $defaults['contact_types_b'] = $defaults['contact_type_b'] ?? NULL;
       if (!empty($defaults['contact_sub_type_b'])) {
         $defaults['contact_types_b'] .= '__' . $defaults['contact_sub_type_b'];
       }
@@ -202,13 +187,13 @@ class CRM_Admin_Form_RelationshipType extends CRM_Admin_Form {
       $params['contact_sub_type_b'] = $cTypeB[1] ? $cTypeB[1] : 'null';
 
       if (!strlen(trim(CRM_Utils_Array::value('label_b_a', $params)))) {
-        $params['label_b_a'] = CRM_Utils_Array::value('label_a_b', $params);
+        $params['label_b_a'] = $params['label_a_b'] ?? NULL;
       }
 
       if (empty($params['id'])) {
         // Set name on created but don't update on update as the machine name is not exposed.
-        $params['name_b_a'] = CRM_Utils_String::munge($params['label_b_a']);
-        $params['name_a_b'] = CRM_Utils_String::munge($params['label_a_b']);
+        $params['name_b_a'] = $params['label_b_a'];
+        $params['name_a_b'] = $params['label_a_b'];
       }
 
       $result = civicrm_api3('RelationshipType', 'create', $params);

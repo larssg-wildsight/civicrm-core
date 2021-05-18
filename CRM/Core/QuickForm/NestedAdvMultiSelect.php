@@ -30,7 +30,6 @@
  *
  * @package CRM
  * @copyright U.S. PIRG Education Fund 2007
- * $Id$
  *
  */
 
@@ -40,6 +39,7 @@ require_once 'HTML/QuickForm/advmultiselect.php';
  * Class CRM_Core_QuickForm_NestedAdvMultiSelect
  */
 class CRM_Core_QuickForm_NestedAdvMultiSelect extends HTML_QuickForm_advmultiselect {
+
   /**
    * Loads options from different types of data sources.
    *
@@ -67,7 +67,7 @@ class CRM_Core_QuickForm_NestedAdvMultiSelect extends HTML_QuickForm_advmultisel
   ) {
     switch (TRUE) {
       case ($options instanceof Iterator):
-        $arr = array();
+        $arr = [];
         foreach ($options as $key => $val) {
           $arr[$key] = $val;
         }

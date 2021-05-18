@@ -1,33 +1,17 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 {* this template is used for adding/editing/deleting premium  *}
 <div class="crm-block crm-form-block crm-contribution-manage_premiums-form-block">
    {if $action eq 8}
       <div class="messages status no-popup">
-          <div class="icon inform-icon"></div>
+          {icon icon="fa-info-circle"}{/icon}
           {ts}Are you sure you want to delete this premium?{/ts} {ts}This action cannot be undone.{/ts} {ts}This will also remove the premium from any contribution pages that currently include it.{/ts}
       </div>
   {elseif $action eq 1024}
@@ -80,19 +64,19 @@
     </tr>
     <tr class="crm-contribution-form-block-min_contribution">
        <td class="label">{$form.min_contribution.label}</td>
-       <td class="html-adjust">{$form.min_contribution.html|crmMoney}<br />
+       <td class="html-adjust">{$form.min_contribution.html}<br />
           <span class="description">{ts}The minimum contribution amount required to be eligible to select this premium. If you want to offer it to all contributors regardless of contribution amount, enter '0'. If display of minimum contribution amounts is enabled then this text is displayed:{/ts} <em>{ts}(Contribute at least X to be eligible for this gift.){/ts}</em></span>
        </td>
     </tr>
     <tr class="crm-contribution-form-block-price">
        <td class="label">{$form.price.label}</td>
-       <td class="html-adjust">{$form.price.html|crmMoney}<br />
+       <td class="html-adjust">{$form.price.html}<br />
      <span class="description">{ts}The market value of this premium (e.g. retail price). For tax-deductible contributions, this amount will be used to set the non-deductible amount in the contribution record and receipt.{/ts}</span>
        </td>
     </tr>
     <tr class="crm-contribution-form-block-cost">
        <td class="label">{$form.cost.label}</td>
-       <td class="html-adjust">{$form.cost.html|crmMoney}<br />
+       <td class="html-adjust">{$form.cost.html}<br />
         <span class="description">{ts}You may optionally record the actual cost of this premium to your organization. This may be useful when evaluating net return for this incentive.{/ts}</span>
        </td>
     </tr>

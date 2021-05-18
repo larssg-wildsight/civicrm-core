@@ -1,28 +1,12 @@
 <?php
 /*
-+--------------------------------------------------------------------+
-| CiviCRM version 5                                                  |
-+--------------------------------------------------------------------+
-| Copyright CiviCRM LLC (c) 2004-2018                                |
-+--------------------------------------------------------------------+
-| This file is a part of CiviCRM.                                    |
-|                                                                    |
-| CiviCRM is free software; you can copy, modify, and distribute it  |
-| under the terms of the GNU Affero General Public License           |
-| Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
-|                                                                    |
-| CiviCRM is distributed in the hope that it will be useful, but     |
-| WITHOUT ANY WARRANTY; without even the implied warranty of         |
-| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
-| See the GNU Affero General Public License for more details.        |
-|                                                                    |
-| You should have received a copy of the GNU Affero General Public   |
-| License and the CiviCRM Licensing Exception along                  |
-| with this program; if not, contact CiviCRM LLC                     |
-| at info[AT]civicrm[DOT]org. If you have questions about the        |
-| GNU Affero General Public License or the licensing of CiviCRM,     |
-| see the CiviCRM license FAQ at http://civicrm.org/licensing        |
-+--------------------------------------------------------------------+
+ +--------------------------------------------------------------------+
+ | Copyright CiviCRM LLC. All rights reserved.                        |
+ |                                                                    |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
+ +--------------------------------------------------------------------+
  */
 
 /**
@@ -35,12 +19,14 @@ class CRM_Utils_ICalendarTest extends CiviUnitTestCase {
    * @return array
    */
   public function escapeExamples() {
-    $cases = array();
-    $cases[] = array("Hello
-    this is, a test!");
-    $cases[] = array("Hello!!
+    $cases = [];
+    $cases[] = ["Hello
+    this is, a test!",
+    ];
+    $cases[] = ["Hello!!
 
-    this is, a \"test\"!");
+    this is, a \"test\"!",
+    ];
     return $cases;
   }
 
@@ -50,6 +36,109 @@ class CRM_Utils_ICalendarTest extends CiviUnitTestCase {
    */
   public function testParseStrings($testString) {
     $this->assertEquals($testString, CRM_Utils_ICalendar::unformatText(CRM_Utils_ICalendar::formatText($testString)));
+  }
+
+  /**
+   * @return array
+   */
+  public function getSendParameters() {
+    return [
+      [
+        ['calendar_data', 'text/xml', 'utf-8', NULL, NULL],
+        [
+          'Content-Language' => 'en_US',
+          'Content-Type' => 'text/xml; charset=utf-8',
+        ],
+      ],
+      [
+        ['calendar_data', 'text/calendar', 'utf-8', NULL, NULL],
+        [
+          'Content-Language' => 'en_US',
+          'Content-Type' => 'text/calendar; charset=utf-8',
+        ],
+      ],
+    ];
+  }
+
+  /**
+   * Test provided send parameters.
+   *
+   * @dataProvider getSendParameters
+   */
+  public function testSendParametersWithoutAttachment($parameters, $expected) {
+    // we need to capture echo output
+    ob_start();
+    CRM_Utils_ICalendar::send(
+      $parameters[0],
+      $parameters[1],
+      $parameters[2],
+      $parameters[3],
+      $parameters[4]
+    );
+    ob_end_clean();
+
+    $headerList = \Civi::$statics['CRM_Utils_System_UnitTests']['header'];
+
+    // Convert headers from simple array to associative array
+    $headers = [];
+    foreach ($headerList as $header) {
+      $headerParts = explode(': ', $header);
+      $headers[$headerParts[0]] = $headerParts[1];
+    }
+
+    $this->assertEquals($expected['Content-Language'], $headers['Content-Language']);
+    $this->assertEquals($expected['Content-Type'], $headers['Content-Type']);
+    $this->assertArrayNotHasKey('Content-Length', $headers);
+    $this->assertArrayNotHasKey('Content-Disposition', $headers);
+    $this->assertArrayNotHasKey('Pragma', $headers);
+    $this->assertArrayNotHasKey('Expires', $headers);
+    $this->assertArrayNotHasKey('Cache-Control', $headers);
+  }
+
+  /**
+   * Test Send with attachment.
+   */
+  public function testSendWithAttachment() {
+    $parameters = [
+      'calendar_data', 'text/calendar', 'utf-8', 'civicrm_ical.ics', 'attachment',
+    ];
+    $expected = [
+      'Content-Language' => 'en_US',
+      'Content-Type' => 'text/calendar; charset=utf-8',
+      'Content-Length' => '13',
+      'Content-Disposition' => 'attachment; filename="civicrm_ical.ics"',
+      'Pragma' => 'no-cache',
+      'Expires' => '0',
+      'Cache-Control' => 'no-cache, must-revalidate',
+    ];
+
+    // we need to capture echo output
+    ob_start();
+    CRM_Utils_ICalendar::send(
+      $parameters[0],
+      $parameters[1],
+      $parameters[2],
+      $parameters[3],
+      $parameters[4]
+    );
+    ob_end_clean();
+
+    $headerList = \Civi::$statics['CRM_Utils_System_UnitTests']['header'];
+
+    // Convert headers from simple array to associative array
+    $headers = [];
+    foreach ($headerList as $header) {
+      $headerParts = explode(': ', $header);
+      $headers[$headerParts[0]] = $headerParts[1];
+    }
+
+    $this->assertEquals($expected['Content-Language'], $headers['Content-Language']);
+    $this->assertEquals($expected['Content-Type'], $headers['Content-Type']);
+    $this->assertEquals($expected['Content-Length'], $headers['Content-Length']);
+    $this->assertEquals($expected['Content-Disposition'], $headers['Content-Disposition']);
+    $this->assertEquals($expected['Pragma'], $headers['Pragma']);
+    $this->assertEquals($expected['Expires'], $headers['Expires']);
+    $this->assertEquals($expected['Cache-Control'], $headers['Cache-Control']);
   }
 
 }

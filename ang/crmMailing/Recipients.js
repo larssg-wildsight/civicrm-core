@@ -95,11 +95,12 @@
           }
           var option = convertValueToObj(item.id);
           var icon = (option.entity_type === 'civicrm_mailing') ? 'fa-envelope' : 'fa-users';
+          var smartGroupMarker = item.is_smart ? '* ' : '';
           var spanClass = (option.mode == 'exclude') ? 'crmMailing-exclude' : 'crmMailing-include';
           if (option.entity_type != 'civicrm_mailing' && isMandatory(option.entity_id)) {
             spanClass = 'crmMailing-mandatory';
           }
-          return '<i class="crm-i '+icon+'"></i> <span class="' + spanClass + '">' + item.text + '</span>';
+          return '<i class="crm-i '+icon+'"></i> <span class="' + spanClass + '">' + smartGroupMarker + item.text + '</span>';
         }
 
         function validate() {
@@ -136,7 +137,7 @@
             var gids = [];
             var mids = [];
 
-            for (var i in values) {
+            for (var i = 0; i < values.length; i++) {
               var dv = convertValueToObj(values[i]);
               if (dv.entity_type == 'civicrm_group') {
                 gids.push(dv.entity_id);
@@ -154,7 +155,7 @@
               mids.push(0);
             }
 
-            CRM.api3('Group', 'getlist', { params: { id: { IN: gids }, options: { limit: 0 } }, extra: ["is_hidden"] } ).then(
+            CRM.api3('Group', 'getlist', { params: { id: { IN: gids }, options: { limit: 0 } }, extra: ["is_hidden"] }).then(
               function(glist) {
                 CRM.api3('Mailing', 'getlist', { params: { id: { IN: mids }, options: { limit: 0 } } }).then(
                   function(mlist) {
@@ -165,8 +166,8 @@
 
                     $(glist.values).each(function (idx, group) {
                       var key = group.id + ' civicrm_group include';
-                      groupNames.push({id: parseInt(group.id), title: group.label, is_hidden: group.extra.is_hidden});
 
+                      groupNames.push({id: parseInt(group.id), title: group.label, is_hidden: group.extra.is_hidden});
                       if (values.indexOf(key) >= 0) {
                         datamap.push({id: key, text: group.label});
                       }
@@ -229,6 +230,14 @@
                 page_num: rcpAjaxState.page_i,
                 params: filterParams,
               };
+
+              if('civicrm_mailing' === rcpAjaxState.entity) {
+                params["api.MailingRecipients.getcount"] = {};
+              }
+              else if ('civicrm_group' === rcpAjaxState.entity) {
+                params.extra = ["saved_search_id"];
+              }
+
               return params;
             },
             transport: function(params) {
@@ -246,12 +255,18 @@
             results: function(data) {
               results = {
                 children: $.map(data.values, function(obj) {
-                  return {   id: obj.id + ' ' + rcpAjaxState.entity + ' ' + rcpAjaxState.type,
-                             text: obj.label };
+                  if('civicrm_mailing' === rcpAjaxState.entity) {
+                    return obj["api.MailingRecipients.getcount"] > 0 ? {   id: obj.id + ' ' + rcpAjaxState.entity + ' ' + rcpAjaxState.type,
+                               text: obj.label } : '';
+                  }
+                  else {
+                    return {   id: obj.id + ' ' + rcpAjaxState.entity + ' ' + rcpAjaxState.type, text: obj.label,
+                              is_smart: (!_.isEmpty(obj.extra.saved_search_id)) };
+                  }
                 })
               };
 
-              if (rcpAjaxState.page_i == 1 && data.count) {
+              if (rcpAjaxState.page_i == 1 && data.count && results.children.length > 0) {
                 results.text = ts((rcpAjaxState.type == 'include'? 'Include ' : 'Exclude ') +
                   (rcpAjaxState.entity == 'civicrm_group'? 'Group' : 'Mailing'));
               }

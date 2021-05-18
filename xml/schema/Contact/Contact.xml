@@ -7,6 +7,14 @@
   <comment>Contact objects are defined by a civicrm_contact record plus a related civicrm_contact_type record.</comment>
   <add>1.1</add>
   <log>true</log>
+  <icon>fa-address-book-o</icon>
+  <labelField>display_name</labelField>
+  <paths>
+    <add>civicrm/contact/add?reset=1&amp;ct=[contact_type]</add>
+    <view>civicrm/contact/view?reset=1&amp;cid=[id]</view>
+    <update>civicrm/contact/add?reset=1&amp;action=update&amp;cid=[id]</update>
+    <delete>civicrm/contact/view/delete?reset=1&amp;delete=1&amp;cid=[id]</delete>
+  </paths>
   <field>
     <name>id</name>
     <type>int unsigned</type>
@@ -15,6 +23,9 @@
     <headerPattern>/internal|contact?|id$/i</headerPattern>
     <required>true</required>
     <comment>Unique Contact ID</comment>
+    <html>
+      <type>Number</type>
+    </html>
     <add>1.1</add>
   </field>
   <primaryKey>
@@ -37,8 +48,10 @@
     <html>
       <type>Select</type>
     </html>
+    <readonly>true</readonly>
     <add>1.1</add>
     <change>3.1</change>
+    <contactType>null</contactType>
   </field>
   <index>
     <name>index_contact_type</name>
@@ -81,6 +94,7 @@
     <default>0</default>
     <html>
       <type>CheckBox</type>
+      <label>Do Not Email</label>
     </html>
     <add>1.1</add>
   </field>
@@ -94,6 +108,7 @@
     <add>1.1</add>
     <html>
       <type>CheckBox</type>
+      <label>Do Not Phone</label>
     </html>
   </field>
   <field>
@@ -106,6 +121,7 @@
     <add>1.1</add>
     <html>
       <type>CheckBox</type>
+      <label>Do Not Mail</label>
     </html>
   </field>
   <field>
@@ -118,6 +134,7 @@
     <add>3.0</add>
     <html>
       <type>CheckBox</type>
+      <label>Do Not Sms</label>
     </html>
   </field>
   <field>
@@ -130,6 +147,7 @@
     <add>1.1</add>
     <html>
       <type>CheckBox</type>
+      <label>Do Not Trade</label>
     </html>
   </field>
   <field>
@@ -143,6 +161,7 @@
     <add>1.1</add>
     <html>
       <type>CheckBox</type>
+      <label>Is Opt Out</label>
     </html>
   </field>
   <field>
@@ -152,11 +171,11 @@
     <import>true</import>
     <headerPattern>/legal\s?id/i</headerPattern>
     <dataPattern>/\w+?\d{5,}/</dataPattern>
-    <comment>May be used for SSN, EIN/TIN, Household ID (census) or other applicable unique legal/government ID.
-    </comment>
+    <comment>May be used for SSN, EIN/TIN, Household ID (census) or other applicable unique legal/government ID.</comment>
     <add>1.1</add>
     <html>
       <type>Text</type>
+      <label>Legal Identifier</label>
     </html>
   </field>
   <field>
@@ -166,6 +185,7 @@
     <html>
       <type>Text</type>
       <size>8</size>
+      <label>External Identifier</label>
     </html>
 
     <import>true</import>
@@ -189,7 +209,7 @@
       <type>Text</type>
       <size>30</size>
     </html>
-
+    <readonly>true</readonly>
     <export>true</export>
     <comment>Name used for sorting different contact types</comment>
     <add>1.1</add>
@@ -208,7 +228,7 @@
       <type>Text</type>
       <size>30</size>
     </html>
-
+    <readonly>true</readonly>
     <export>true</export>
     <comment>Formatted name representing preferred format for display/print/other output.</comment>
     <add>1.1</add>
@@ -237,31 +257,14 @@
     <html>
       <type>Text</type>
       <size>30</size>
+      <label>Legal Name</label>
     </html>
-
+    <contactType>Organization</contactType>
     <import>true</import>
     <headerPattern>/^legal|(l(egal\s)?name)$/i</headerPattern>
     <comment>Legal Name.</comment>
     <fulltext/>
     <add>1.1</add>
-  </field>
-  <field>
-    <name>home_URL</name>
-    <rule>url</rule>
-    <title>Website</title>
-    <type>varchar</type>
-    <length>128</length>
-    <html>
-      <type>Text</type>
-      <size>30</size>
-    </html>
-
-    <import>true</import>
-    <headerPattern>/^(home\sURL)|URL|web|site/i</headerPattern>
-    <dataPattern>/^[\w\/\:\.]+$/</dataPattern>
-    <comment>optional "home page" URL for this contact.</comment>
-    <add>1.1</add>
-    <drop>3.2</drop>
   </field>
   <field>
     <name>image_URL</name>
@@ -272,6 +275,7 @@
     <html>
       <type>File</type>
       <size>30</size>
+      <label>Image URL</label>
     </html>
   </field>
   <field>
@@ -329,6 +333,7 @@
     </pseudoconstant>
     <html>
       <type>Select</type>
+      <label>Preferred Mail Format</label>
     </html>
   </field>
   <field>
@@ -340,6 +345,7 @@
     <add>1.1</add>
     <change>1.5</change>
     <export>true</export>
+    <readonly>true</readonly>
   </field>
   <index>
     <name>index_hash</name>
@@ -351,7 +357,14 @@
     <type>varchar</type>
     <length>32</length>
     <comment>API Key for validating requests related to this contact.</comment>
+    <html>
+      <label>API KEY</label>
+    </html>
     <add>2.2</add>
+    <readonly>true</readonly>
+    <permission>
+      <or>administer CiviCRM, edit api keys</or>
+    </permission>
   </field>
   <index>
     <name>index_api_key</name>
@@ -381,6 +394,7 @@
     <html>
       <type>Text</type>
       <size>30</size>
+      <label>First Name</label>
     </html>
     <import>true</import>
     <headerPattern>/^first|(f(irst\s)?name)$/i</headerPattern>
@@ -388,6 +402,7 @@
     <fulltext/>
     <comment>First Name.</comment>
     <add>1.1</add>
+    <contactType>Individual</contactType>
   </field>
   <index>
     <name>index_first_name</name>
@@ -401,6 +416,7 @@
     <html>
       <type>Text</type>
       <size>30</size>
+      <label>Middle Name</label>
     </html>
     <import>true</import>
     <headerPattern>/^middle|(m(iddle\s)?name)$/i</headerPattern>
@@ -408,6 +424,7 @@
     <fulltext/>
     <comment>Middle Name.</comment>
     <add>1.1</add>
+    <contactType>Individual</contactType>
   </field>
   <field>
     <name>last_name</name>
@@ -416,6 +433,7 @@
     <html>
       <type>Text</type>
       <size>30</size>
+      <label>Last Name</label>
     </html>
     <import>true</import>
     <headerPattern>/^last|(l(ast\s)?name)$/i</headerPattern>
@@ -423,14 +441,12 @@
     <comment>Last Name.</comment>
     <fulltext/>
     <add>1.1</add>
+    <contactType>Individual</contactType>
   </field>
   <index>
     <name>index_last_name</name>
     <fieldName>last_name</fieldName>
     <add>1.8</add>
-    <html>
-      <type>Text</type>
-    </html>
   </index>
   <field>
     <name>prefix_id</name>
@@ -447,6 +463,7 @@
     <dataPattern>/^(mr|ms|mrs|sir|dr)\.?$/i</dataPattern>
     <import>true</import>
     <add>1.2</add>
+    <contactType>Individual</contactType>
   </field>
   <index>
     <name>UI_prefix</name>
@@ -468,6 +485,7 @@
     <headerPattern>/^suffix$/i</headerPattern>
     <dataPattern>/^(sr|jr)\.?|i{2,}$/</dataPattern>
     <add>1.2</add>
+    <contactType>Individual</contactType>
   </field>
   <index>
     <name>UI_suffix</name>
@@ -481,10 +499,12 @@
     <import>true</import>
     <html>
       <type>Text</type>
+      <label>Formal Title</label>
     </html>
     <headerPattern>/^title/i</headerPattern>
     <comment>Formal (academic or similar) title in front of name. (Prof., Dr. etc.)</comment>
     <add>4.5</add>
+    <contactType>Individual</contactType>
   </field>
   <field>
     <name>communication_style_id</name>
@@ -494,6 +514,8 @@
       <optionGroupName>communication_style</optionGroupName>
     </pseudoconstant>
     <export>true</export>
+    <import>true</import>
+    <headerPattern>/style/i</headerPattern>
     <comment>Communication style (e.g. formal vs. familiar) to use with this contact. FK to communication styles in civicrm_option_value.</comment>
     <add>4.4</add>
     <html>
@@ -506,38 +528,15 @@
     <add>4.4</add>
   </index>
   <field>
-    <name>greeting_type</name>
-    <type>varchar</type>
-    <length>128</length>
-    <import>true</import>
-    <comment>Preferred greeting format.</comment>
-    <add>1.1</add>
-    <drop>2.2</drop>
-  </field>
-  <field>
-    <name>greeting_type_id</name>
-    <title>Greeting Type</title>
-    <type>int unsigned</type>
-    <comment>FK to civicrm_option_value.id, that has to be valid, registered Greeting type.</comment>
-    <add>2.2</add>
-    <drop>3.0</drop>
-  </field>
-  <field>
-    <name>custom_greeting</name>
-    <type>varchar</type>
-    <length>128</length>
-    <import>true</import>
-    <comment>Custom greeting message.</comment>
-    <add>1.1</add>
-    <drop>3.0</drop>
-  </field>
-  <field>
     <name>email_greeting_id</name>
     <type>int unsigned</type>
     <title>Email Greeting ID</title>
     <export>true</export>
     <comment>FK to civicrm_option_value.id, that has to be valid registered Email Greeting.</comment>
     <add>3.0</add>
+    <html>
+      <type>Select</type>
+    </html>
     <pseudoconstant>
       <optionGroupName>email_greeting</optionGroupName>
     </pseudoconstant>
@@ -552,6 +551,7 @@
     <add>3.0</add>
     <html>
       <type>Text</type>
+      <label>Email Greeting Custom</label>
     </html>
   </field>
   <field>
@@ -560,10 +560,8 @@
     <type>varchar</type>
     <length>255</length>
     <comment>Cache Email Greeting.</comment>
+    <readonly>true</readonly>
     <add>3.0</add>
-    <html>
-      <type>Text</type>
-    </html>
   </field>
   <field>
     <name>postal_greeting_id</name>
@@ -573,7 +571,7 @@
     <comment>FK to civicrm_option_value.id, that has to be valid registered Postal Greeting.</comment>
     <add>3.0</add>
     <html>
-      <type>Text</type>
+      <type>Select</type>
     </html>
     <pseudoconstant>
       <optionGroupName>postal_greeting</optionGroupName>
@@ -589,6 +587,7 @@
     <add>3.0</add>
     <html>
       <type>Text</type>
+      <label>Postal Greeting Custom</label>
     </html>
   </field>
   <field>
@@ -597,10 +596,8 @@
     <type>varchar</type>
     <length>255</length>
     <comment>Cache Postal greeting.</comment>
+    <readonly>true</readonly>
     <add>3.0</add>
-    <html>
-      <type>Text</type>
-    </html>
   </field>
   <field>
     <name>addressee_id</name>
@@ -609,6 +606,9 @@
     <comment>FK to civicrm_option_value.id, that has to be valid registered Addressee.</comment>
     <add>3.0</add>
     <export>true</export>
+    <html>
+      <type>Select</type>
+    </html>
     <pseudoconstant>
       <optionGroupName>addressee</optionGroupName>
     </pseudoconstant>
@@ -623,6 +623,7 @@
     <add>3.0</add>
     <html>
       <type>Text</type>
+      <label>Addressee Custom</label>
     </html>
   </field>
   <field>
@@ -631,10 +632,8 @@
     <type>varchar</type>
     <length>255</length>
     <comment>Cache Addressee.</comment>
+    <readonly>true</readonly>
     <add>3.0</add>
-    <html>
-      <type>Text</type>
-    </html>
   </field>
   <field>
     <name>job_title</name>
@@ -643,35 +642,36 @@
     <html>
       <type>Text</type>
       <size>30</size>
+      <label>Job Title</label>
     </html>
     <import>true</import>
     <headerPattern>/^job|(j(ob\s)?title)$/i</headerPattern>
     <dataPattern>//</dataPattern>
     <comment>Job Title</comment>
     <add>1.1</add>
+    <contactType>Individual</contactType>
   </field>
   <field>
     <name>gender_id</name>
-    <title>Gender</title>
+    <title>Gender ID</title>
     <type>int unsigned</type>
     <pseudoconstant>
       <optionGroupName>gender</optionGroupName>
     </pseudoconstant>
     <html>
       <type>Select</type>
+      <label>Gender</label>
     </html>
     <headerPattern>/^gender$/i</headerPattern>
     <comment>FK to gender ID</comment>
     <import>true</import>
     <add>1.2</add>
+    <contactType>Individual</contactType>
   </field>
   <index>
     <name>UI_gender</name>
     <fieldName>gender_id</fieldName>
     <add>1.6</add>
-    <html>
-      <type>Select</type>
-    </html>
   </index>
   <field>
     <name>birth_date</name>
@@ -684,7 +684,9 @@
     <html>
       <type>Select Date</type>
       <formatType>birth</formatType>
+      <label>Birth Date</label>
     </html>
+    <contactType>Individual</contactType>
   </field>
   <field>
     <name>is_deceased</name>
@@ -695,9 +697,12 @@
     <type>boolean</type>
     <default>0</default>
     <add>1.1</add>
+    <required>true</required>
     <html>
       <type>CheckBox</type>
+      <label>Is Deceased</label>
     </html>
+    <contactType>Individual</contactType>
   </field>
   <index>
     <name>index_is_deceased</name>
@@ -715,25 +720,10 @@
     <html>
       <type>Select Date</type>
       <formatType>birth</formatType>
+      <label>Deceased Date</label>
     </html>
+    <contactType>Individual</contactType>
   </field>
-  <field>
-    <name>mail_to_household_id</name>
-    <title>Mail to Household ID</title>
-    <type>int unsigned</type>
-    <comment>OPTIONAL FK to civicrm_contact_household record. If NOT NULL, direct mail communications to household rather than individual location. </comment>
-    <export>true</export>
-    <add>1.1</add>
-    <drop>3.3</drop>
-  </field>
-  <foreignKey>
-    <name>mail_to_household_id</name>
-    <table>civicrm_contact</table>
-    <key>id</key>
-    <add>2.1</add>
-    <onDelete>SET NULL</onDelete>
-    <drop>3.3</drop>
-  </foreignKey>
   <field>
     <name>household_name</name>
     <type>varchar</type>
@@ -741,6 +731,7 @@
     <html>
       <type>Text</type>
       <size>30</size>
+      <label>Household Name</label>
     </html>
     <import>true</import>
     <headerPattern>/^household|(h(ousehold\s)?name)$/i</headerPattern>
@@ -748,6 +739,7 @@
     <comment>Household Name.</comment>
     <fulltext/>
     <add>1.1</add>
+    <contactType>Household</contactType>
   </field>
   <index>
     <name>index_household_name</name>
@@ -759,10 +751,12 @@
     <type>int unsigned</type>
     <title>Household Primary Contact ID</title>
     <comment>Optional FK to Primary Contact for this household.</comment>
-    <add>1.1</add>
     <html>
-      <type>Select</type>
+      <label>Household Primary Contact</label>
     </html>
+    <add>1.1</add>
+    <contactType>Household</contactType>
+    <readonly>true</readonly>
   </field>
   <foreignKey>
     <name>primary_contact_id</name>
@@ -778,6 +772,7 @@
     <html>
       <type>Text</type>
       <size>30</size>
+      <label>Organization Name</label>
     </html>
     <import>true</import>
     <headerPattern>/^organization|(o(rganization\s)?name)$/i</headerPattern>
@@ -785,6 +780,7 @@
     <comment>Organization Name.</comment>
     <fulltext/>
     <add>1.1</add>
+    <contactType>Organization</contactType>
   </field>
   <index>
     <name>index_organization_name</name>
@@ -801,7 +797,9 @@
     <add>1.1</add>
     <html>
       <type>Text</type>
+      <label>SIC Code</label>
     </html>
+    <contactType>Organization</contactType>
   </field>
   <field>
     <name>user_unique_id</name>
@@ -820,7 +818,7 @@
   </field>
   <field>
     <name>employer_id</name>
-    <title>Current Employer</title>
+    <title>Current Employer ID</title>
     <uniqueName>current_employer_id</uniqueName>
     <type>int unsigned</type>
     <comment>OPTIONAL FK to civicrm_contact record.</comment>
@@ -828,7 +826,9 @@
     <add>2.1</add>
     <html>
       <type>EntityRef</type>
+      <label>Current Employer</label>
     </html>
+    <contactType>Individual</contactType>
   </field>
   <foreignKey>
     <name>employer_id</name>
@@ -849,13 +849,8 @@
     <html>
       <type>CheckBox</type>
     </html>
+    <permission>access deleted contacts</permission>
   </field>
-  <index>
-    <name>index_is_deleted</name>
-    <fieldName>is_deleted</fieldName>
-    <add>3.2</add>
-    <drop>4.4</drop>
-  </index>
   <index>
     <name>index_is_deleted_sort_name</name>
     <fieldName>is_deleted</fieldName>
@@ -870,8 +865,16 @@
     <required>false</required>
     <export>true</export>
     <default>NULL</default>
+    <html>
+      <label>Created Date</label>
+    </html>
     <add>4.3</add>
   </field>
+  <index>
+    <name>index_created_date</name>
+    <fieldName>created_date</fieldName>
+    <add>5.18</add>
+  </index>
   <field>
     <name>modified_date</name>
     <type>timestamp</type>
@@ -879,6 +882,15 @@
     <required>false</required>
     <export>true</export>
     <default>CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP</default>
+    <html>
+      <label>Modified Date</label>
+    </html>
+    <readonly>true</readonly>
     <add>4.3</add>
   </field>
+  <index>
+    <name>index_modified_date</name>
+    <fieldName>modified_date</fieldName>
+    <add>5.18</add>
+  </index>
 </table>

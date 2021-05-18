@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -38,11 +22,13 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
 
   /**
    * Membership price set status.
+   * @var bool
    */
   public $_useForMember;
 
   /**
    * Tranxaaction Id of the current contribution
+   * @var string
    */
   public $_trxnId;
 
@@ -107,13 +93,11 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
     }
 
     $params = $this->_params;
-    $invoiceSettings = Civi::settings()->get('contribution_invoice_settings');
-    $invoicing = CRM_Utils_Array::value('invoicing', $invoiceSettings);
+    $invoicing = CRM_Invoicing_Utils::isInvoicingEnabled();
     // Make a copy of line items array to use for display only
     $tplLineItems = $this->_lineItem;
     if ($invoicing) {
       $getTaxDetails = FALSE;
-      $taxTerm = CRM_Utils_Array::value('tax_term', $invoiceSettings);
       foreach ($this->_lineItem as $key => $value) {
         foreach ($value as $k => $v) {
           if (isset($v['tax_rate'])) {
@@ -126,7 +110,7 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
         }
       }
       $this->assign('getTaxDetails', $getTaxDetails);
-      $this->assign('taxTerm', $taxTerm);
+      $this->assign('taxTerm', CRM_Invoicing_Utils::getTaxTerm());
       $this->assign('totalTaxAmount', $params['tax_amount']);
     }
 
@@ -149,7 +133,7 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
       $this->assign('soft_credit_type', $softCreditTypes[$params['soft_credit_type_id']]);
       CRM_Contribute_BAO_ContributionSoft::formatHonoreeProfileFields($this, $params['honor']);
 
-      $fieldTypes = array('Contact');
+      $fieldTypes = ['Contact'];
       $fieldTypes[] = CRM_Core_BAO_UFGroup::getContactType($this->_values['honoree_profile_id']);
       $this->buildCustom($this->_values['honoree_profile_id'], 'honoreeProfileFields', TRUE, 'honor', $fieldTypes);
     }
@@ -159,12 +143,12 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
     if ($this->_pcpId) {
       $qParams .= "&amp;pcpId={$this->_pcpId}";
       $this->assign('pcpBlock', TRUE);
-      foreach (array(
-                 'pcp_display_in_roll',
-                 'pcp_is_anonymous',
-                 'pcp_roll_nickname',
-                 'pcp_personal_note',
-               ) as $val) {
+      foreach ([
+        'pcp_display_in_roll',
+        'pcp_is_anonymous',
+        'pcp_roll_nickname',
+        'pcp_personal_note',
+      ] as $val) {
         if (!empty($this->_params[$val])) {
           $this->assign($val, $this->_params[$val]);
         }
@@ -183,9 +167,7 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
 
       $this->buildMembershipBlock(
         $this->_membershipContactID,
-        FALSE,
         $membershipTypeID,
-        TRUE,
         NULL
       );
 
@@ -207,20 +189,20 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
         !empty($params['is_for_organization'])
       ) && empty($this->_ccid)
     ) {
-      $fieldTypes = array('Contact', 'Organization');
+      $fieldTypes = ['Contact', 'Organization'];
       $contactSubType = CRM_Contact_BAO_ContactType::subTypes('Organization');
       $fieldTypes = array_merge($fieldTypes, $contactSubType);
       if (is_array($this->_membershipBlock) && !empty($this->_membershipBlock)) {
-        $fieldTypes = array_merge($fieldTypes, array('Membership'));
+        $fieldTypes = array_merge($fieldTypes, ['Membership']);
       }
       else {
-        $fieldTypes = array_merge($fieldTypes, array('Contribution'));
+        $fieldTypes = array_merge($fieldTypes, ['Contribution']);
       }
 
       $this->buildCustom($this->_values['onbehalf_profile_id'], 'onbehalfProfile', TRUE, 'onbehalf', $fieldTypes);
     }
 
-    $this->_trxnId = CRM_Utils_Array::value('trxn_id', $this->_params);
+    $this->_trxnId = $this->_params['trxn_id'] ?? NULL;
 
     $this->assign('trxn_id', $this->_trxnId);
 
@@ -228,8 +210,8 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
       CRM_Utils_Date::mysqlToIso(CRM_Utils_Array::value('receive_date', $this->_params))
     );
 
-    $defaults = array();
-    $fields = array();
+    $defaults = [];
+    $fields = [];
     foreach ($this->_fields as $name => $dontCare) {
       if ($name != 'onbehalf' || $name != 'honor') {
         $fields[$name] = 1;
@@ -247,11 +229,11 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
             $defaults[$timeField] = $contact[$timeField];
           }
         }
-        elseif (in_array($name, array(
-              'addressee',
-              'email_greeting',
-              'postal_greeting',
-            )) && !empty($contact[$name . '_custom'])
+        elseif (in_array($name, [
+          'addressee',
+          'email_greeting',
+          'postal_greeting',
+        ]) && !empty($contact[$name . '_custom'])
         ) {
           $defaults[$name . '_custom'] = $contact[$name . '_custom'];
         }
@@ -295,33 +277,201 @@ class CRM_Contribute_Form_Contribution_ThankYou extends CRM_Contribute_Form_Cont
       $this->assign('friendURL', $url);
     }
 
-    $isPendingOutcome = TRUE;
-    try {
-      // A payment notification update could have come in at any time. Check at the last minute.
-      $contributionStatusID = civicrm_api3('Contribution', 'getvalue', array(
-        'id' => CRM_Utils_Array::value('contributionID', $params),
-        'return' => 'contribution_status_id',
-        'invoice_id' => CRM_Utils_Array::value('invoiceID', $params),
-      ));
-      if (CRM_Core_PseudoConstant::getName('CRM_Contribute_BAO_Contribution', 'contribution_status_id', $contributionStatusID) === 'Pending'
-        && !empty($params['payment_processor_id'])
-      ) {
-        $isPendingOutcome = TRUE;
-      }
-      else {
-        $isPendingOutcome = FALSE;
-      }
-    }
-    catch (CiviCRM_API3_Exception $e) {
-
-    }
-    $this->assign('isPendingOutcome', $isPendingOutcome);
-
+    $this->assign('isPendingOutcome', $this->isPendingOutcome($params));
     $this->freeze();
 
     // can we blow away the session now to prevent hackery
     // CRM-9491
     $this->controller->reset();
+  }
+
+  /**
+   * Build Membership  Block in Contribution Pages.
+   * @todo this was shared on CRM_Contribute_Form_ContributionBase but we are refactoring and simplifying for each
+   *   step (main/confirm/thankyou)
+   *
+   * @param int $cid
+   *   Contact checked for having a current membership for a particular membership.
+   * @param int|array $selectedMembershipTypeID
+   *   Selected membership id.
+   * @param null $isTest
+   *
+   * @return bool
+   *   Is this a separate membership payment
+   *
+   * @throws \CiviCRM_API3_Exception
+   * @throws \CRM_Core_Exception
+   */
+  private function buildMembershipBlock($cid, $selectedMembershipTypeID = NULL, $isTest = NULL) {
+    $separateMembershipPayment = FALSE;
+    if ($this->_membershipBlock) {
+      $this->_currentMemberships = [];
+
+      $membershipTypeIds = $membershipTypes = $radio = $radioOptAttrs = [];
+      $membershipPriceset = (!empty($this->_priceSetId) && $this->_useForMember);
+
+      $autoRenewMembershipTypeOptions = [];
+
+      $separateMembershipPayment = $this->_membershipBlock['is_separate_payment'] ?? NULL;
+
+      if ($membershipPriceset) {
+        foreach ($this->_priceSet['fields'] as $pField) {
+          if (empty($pField['options'])) {
+            continue;
+          }
+          foreach ($pField['options'] as $opId => $opValues) {
+            if (empty($opValues['membership_type_id'])) {
+              continue;
+            }
+            $membershipTypeIds[$opValues['membership_type_id']] = $opValues['membership_type_id'];
+          }
+        }
+      }
+      elseif (!empty($this->_membershipBlock['membership_types'])) {
+        $membershipTypeIds = explode(',', $this->_membershipBlock['membership_types']);
+      }
+
+      if (!empty($membershipTypeIds)) {
+        //set status message if wrong membershipType is included in membershipBlock
+        if (isset($this->_mid) && !$membershipPriceset) {
+          $membershipTypeID = CRM_Core_DAO::getFieldValue('CRM_Member_DAO_Membership',
+            $this->_mid,
+            'membership_type_id'
+          );
+          if (!in_array($membershipTypeID, $membershipTypeIds)) {
+            CRM_Core_Session::setStatus(ts("Oops. The membership you're trying to renew appears to be invalid. Contact your site administrator if you need assistance. If you continue, you will be issued a new membership."), ts('Invalid Membership'), 'error');
+          }
+        }
+
+        $membershipTypeValues = CRM_Member_BAO_Membership::buildMembershipTypeValues($this, $membershipTypeIds);
+        $this->_membershipTypeValues = $membershipTypeValues;
+        $endDate = NULL;
+
+        // Check if we support auto-renew on this contribution page
+        // FIXME: If any of the payment processors do NOT support recurring you cannot setup an
+        //   auto-renew payment even if that processor is not selected.
+        $allowAutoRenewOpt = TRUE;
+        if (is_array($this->_paymentProcessors)) {
+          foreach ($this->_paymentProcessors as $id => $val) {
+            if ($id && !$val['is_recur']) {
+              $allowAutoRenewOpt = FALSE;
+            }
+          }
+        }
+        foreach ($membershipTypeIds as $value) {
+          $memType = $membershipTypeValues[$value];
+          if ($selectedMembershipTypeID != NULL) {
+            if ($memType['id'] == $selectedMembershipTypeID) {
+              $this->assign('minimum_fee', $memType['minimum_fee'] ?? NULL);
+              $this->assign('membership_name', $memType['name']);
+              $membershipTypes[] = $memType;
+            }
+          }
+          elseif ($memType['is_active']) {
+
+            if ($allowAutoRenewOpt) {
+              $javascriptMethod = ['onclick' => "return showHideAutoRenew( this.value );"];
+              $isAvailableAutoRenew = $this->_membershipBlock['auto_renew'][$value] ?? 1;
+              $autoRenewMembershipTypeOptions["autoRenewMembershipType_{$value}"] = (int) $memType['auto_renew'] * $isAvailableAutoRenew;
+              $allowAutoRenewMembership = TRUE;
+            }
+            else {
+              $javascriptMethod = NULL;
+              $autoRenewMembershipTypeOptions["autoRenewMembershipType_{$value}"] = 0;
+            }
+
+            //add membership type.
+            $radio[$memType['id']] = NULL;
+            $radioOptAttrs[$memType['id']] = $javascriptMethod;
+            if ($cid) {
+              $membership = new CRM_Member_DAO_Membership();
+              $membership->contact_id = $cid;
+              $membership->membership_type_id = $memType['id'];
+
+              //show current membership, skip pending and cancelled membership records,
+              //because we take first membership record id for renewal
+              $membership->whereAdd('status_id != 5 AND status_id !=6');
+
+              if (!is_null($isTest)) {
+                $membership->is_test = $isTest;
+              }
+
+              //CRM-4297
+              $membership->orderBy('end_date DESC');
+
+              if ($membership->find(TRUE)) {
+                if (!$membership->end_date) {
+                  unset($radio[$memType['id']]);
+                  unset($radioOptAttrs[$memType['id']]);
+                  $this->assign('islifetime', TRUE);
+                  continue;
+                }
+                $this->assign('renewal_mode', TRUE);
+                $this->_currentMemberships[$membership->membership_type_id] = $membership->membership_type_id;
+                $memType['current_membership'] = $membership->end_date;
+                if (!$endDate) {
+                  $endDate = $memType['current_membership'];
+                  $this->_defaultMemTypeId = $memType['id'];
+                }
+                if ($memType['current_membership'] < $endDate) {
+                  $endDate = $memType['current_membership'];
+                  $this->_defaultMemTypeId = $memType['id'];
+                }
+              }
+            }
+            $membershipTypes[] = $memType;
+          }
+        }
+      }
+
+      $this->assign('membershipBlock', $this->_membershipBlock);
+      $this->assign('showRadio', FALSE);
+      $this->assign('membershipTypes', $membershipTypes);
+      $this->assign('autoRenewMembershipTypeOptions', json_encode($autoRenewMembershipTypeOptions));
+      //give preference to user submitted auto_renew value.
+      $takeUserSubmittedAutoRenew = (!empty($_POST) || $this->isSubmitted());
+      $this->assign('takeUserSubmittedAutoRenew', $takeUserSubmittedAutoRenew);
+
+      // Assign autorenew option (0:hide,1:optional,2:required) so we can use it in confirmation etc.
+      $autoRenewOption = CRM_Price_BAO_PriceSet::checkAutoRenewForPriceSet($this->_priceSetId);
+      //$selectedMembershipTypeID is retrieved as an array for membership priceset if multiple
+      //options for different organisation is selected on the contribution page.
+      if (is_numeric($selectedMembershipTypeID) && isset($membershipTypeValues[$selectedMembershipTypeID]['auto_renew'])) {
+        $this->assign('autoRenewOption', $membershipTypeValues[$selectedMembershipTypeID]['auto_renew']);
+      }
+      else {
+        $this->assign('autoRenewOption', $autoRenewOption);
+      }
+    }
+
+    return $separateMembershipPayment;
+  }
+
+  /**
+   * Is the outcome of this contribution still pending.
+   *
+   * @param array $params
+   *
+   * @return bool
+   */
+  protected function isPendingOutcome(array $params): bool {
+    if (empty($params['payment_processor_id'])) {
+      return FALSE;
+    }
+    try {
+      // A payment notification update could have come in at any time. Check at the last minute.
+      civicrm_api3('Contribution', 'getvalue', [
+        'id' => $params['contributionID'] ?? NULL,
+        'contribution_status_id' => 'Pending',
+        'is_test' => '',
+        'return' => 'id',
+        'invoice_id' => $params['invoiceID'] ?? NULL,
+      ]);
+      return TRUE;
+    }
+    catch (CiviCRM_API3_Exception $e) {
+      return FALSE;
+    }
   }
 
 }

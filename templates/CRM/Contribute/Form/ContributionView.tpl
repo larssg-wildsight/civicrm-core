@@ -1,26 +1,10 @@
 {*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
 *}
 <div class="crm-block crm-content-block crm-contribution-view-form-block">
@@ -33,10 +17,10 @@
         {assign var='urlParams' value="reset=1&id=$id&cid=$contact_id&action=update&context=$context&key=$searchKey"}
       {/if}
       <a class="button" href="{crmURL p='civicrm/contact/view/contribution' q=$urlParams}" accesskey="e"><span>
-          <i class="crm-i fa-pencil"></i> {ts}Edit{/ts}</span>
+          <i class="crm-i fa-pencil" aria-hidden="true"></i> {ts}Edit{/ts}</span>
       </a>
       {if $paymentButtonName}
-        <a class="button" href='{crmURL p="civicrm/payment" q="action=add&reset=1&component=`$component`&id=`$id`&cid=`$contact_id`"}'><i class="crm-i fa-plus-circle"></i> {ts}{$paymentButtonName}{/ts}</a>
+        <a class="button" href='{crmURL p="civicrm/payment" q="action=add&reset=1&component=`$component`&id=`$id`&cid=`$contact_id`"}'><i class="crm-i fa-plus-circle" aria-hidden="true"></i> {ts}{$paymentButtonName}{/ts}</a>
       {/if}
     {/if}
     {if (call_user_func(array('CRM_Core_Permission','check'), 'delete in CiviContribute') && call_user_func(array('CRM_Core_Permission', 'check'), "delete contributions of type $financial_type") && $canDelete)     || (call_user_func(array('CRM_Core_Permission','check'), 'delete in CiviContribute') && $noACL)}
@@ -45,7 +29,7 @@
         {assign var='urlParams' value="reset=1&id=$id&cid=$contact_id&action=delete&context=$context&key=$searchKey"}
       {/if}
       <a class="button" href="{crmURL p='civicrm/contact/view/contribution' q=$urlParams}"><span>
-          <i class="crm-i fa-trash"></i> {ts}Delete{/ts}</span>
+          <i class="crm-i fa-trash" aria-hidden="true"></i> {ts}Delete{/ts}</span>
       </a>
     {/if}
     {include file="CRM/common/formButtons.tpl" location="top"}
@@ -54,20 +38,25 @@
     {if $invoicing}
       <div class="css_right">
         <a class="button no-popup" href="{crmURL p='civicrm/contribute/invoice' q=$pdfUrlParams}">
-          <i class="crm-i fa-print"></i>
+          <i class="crm-i fa-print" aria-hidden="true"></i>
         {if $contribution_status != 'Refunded' && $contribution_status != 'Cancelled' }
           {ts}Print Invoice{/ts}</a>
         {else}
           {ts}Print Invoice and Credit Note{/ts}</a>
         {/if}
         <a class="button" href="{crmURL p='civicrm/contribute/invoice/email' q=$emailUrlParams}">
-          <i class="crm-i fa-paper-plane"></i>
+          <i class="crm-i fa-paper-plane" aria-hidden="true"></i>
           {ts}Email Invoice{/ts}</a>
       </div>
     {/if}
   </div>
 </div>
 <table class="crm-info-panel">
+  {if $is_test}
+    <div class="help">
+      <strong>{ts}This is a TEST transaction{/ts}</strong>
+    </div>
+  {/if}
   <tr>
     <td class="label">{ts}From{/ts}</td>
     <td class="bold"><a href="{crmURL p='civicrm/contact/view' q="cid=$contact_id"}">{$displayName}</a></td>
@@ -75,6 +64,14 @@
   <tr>
     <td class="label">{ts}Financial Type{/ts}</td>
     <td>{$financial_type}{if $is_test} {ts}(test){/ts} {/if}</td>
+  </tr>
+  <tr>
+    <td class="label">{ts}Source{/ts}</td>
+    <td>{$source}</td>
+  </tr>
+  <tr>
+    <td class="label">{ts}Received{/ts}</td>
+    <td>{if $receive_date}{$receive_date|crmDate}{else}({ts}not available{/ts}){/if}</td>
   </tr>
   {if $displayLineItems}
     <tr>
@@ -131,10 +128,6 @@
       <td>{$revenue_recognition_date|crmDate:"%B, %Y"}</td>
     </tr>
   {/if}
-  <tr>
-    <td class="label">{ts}Received{/ts}</td>
-    <td>{if $receive_date}{$receive_date|crmDate}{else}({ts}not available{/ts}){/if}</td>
-  </tr>
   {if $to_financial_account }
     <tr>
       <td class="label">{ts}Received Into{/ts}</td>
@@ -170,16 +163,12 @@
     <td>{$payment_instrument}{if $payment_processor_name} ({$payment_processor_name}){/if}</td>
   </tr>
 
-  {if $payment_instrument eq 'Check'|ts}
+  {if $check_number}
     <tr>
       <td class="label">{ts}Check Number{/ts}</td>
       <td>{$check_number}</td>
     </tr>
   {/if}
-  <tr>
-    <td class="label">{ts}Source{/ts}</td>
-    <td>{$source}</td>
-  </tr>
 
   {if $campaign}
     <tr>
@@ -248,7 +237,7 @@
   {/if}
 </table>
 
-{if count($softContributions)} {* We show soft credit name with PCP section if contribution is linked to a PCP. *}
+{if $softContributions && count($softContributions)} {* We show soft credit name with PCP section if contribution is linked to a PCP. *}
   <div class="crm-accordion-wrapper crm-soft-credit-pane">
     <div class="crm-accordion-header">
       {ts}Soft Credit{/ts}
@@ -352,9 +341,9 @@
     {if ( $context eq 'fulltext' || $context eq 'search' ) && $searchKey}
       {assign var='urlParams' value="reset=1&id=$id&cid=$contact_id&action=update&context=$context&key=$searchKey"}
     {/if}
-    <a class="button" href="{crmURL p='civicrm/contact/view/contribution' q=$urlParams}" accesskey="e"><span><i class="crm-i fa-pencil"></i> {ts}Edit{/ts}</span></a>
+    <a class="button" href="{crmURL p='civicrm/contact/view/contribution' q=$urlParams}" accesskey="e"><span><i class="crm-i fa-pencil" aria-hidden="true"></i> {ts}Edit{/ts}</span></a>
     {if $paymentButtonName}
-      <a class="button" href='{crmURL p="civicrm/payment" q="action=add&reset=1&component=`$component`&id=`$id`&cid=`$contact_id`"}'><i class="crm-i fa-plus-circle"></i> {ts}{$paymentButtonName}{/ts}</a>
+      <a class="button" href='{crmURL p="civicrm/payment" q="action=add&reset=1&component=`$component`&id=`$id`&cid=`$contact_id`"}'><i class="crm-i fa-plus-circle" aria-hidden="true"></i> {ts}{$paymentButtonName}{/ts}</a>
     {/if}
   {/if}
   {if (call_user_func(array('CRM_Core_Permission','check'), 'delete in CiviContribute') && call_user_func(array('CRM_Core_Permission', 'check'), "delete contributions of type $financial_type") && $canDelete)     || (call_user_func(array('CRM_Core_Permission','check'), 'delete in CiviContribute') && $noACL)}
@@ -362,7 +351,7 @@
     {if ( $context eq 'fulltext' || $context eq 'search' ) && $searchKey}
       {assign var='urlParams' value="reset=1&id=$id&cid=$contact_id&action=delete&context=$context&key=$searchKey"}
     {/if}
-    <a class="button" href="{crmURL p='civicrm/contact/view/contribution' q=$urlParams}"><span><i class="crm-i fa-trash"></i> {ts}Delete{/ts}</span></a>
+    <a class="button" href="{crmURL p='civicrm/contact/view/contribution' q=$urlParams}"><span><i class="crm-i fa-trash" aria-hidden="true"></i> {ts}Delete{/ts}</span></a>
   {/if}
   {include file="CRM/common/formButtons.tpl" location="bottom"}
 </div>

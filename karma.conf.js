@@ -21,6 +21,7 @@ module.exports = function(config) {
     autoWatch: true,
     browsers: ['PhantomJS'],
     exclude: [
+      'ang/api4Explorer/Explorer.js'
     ],
     files: [
       'bower_components/phantomjs-polyfill/bind-polyfill.js',
@@ -32,8 +33,8 @@ module.exports = function(config) {
       'bower_components/jquery-validation/dist/jquery.validate.min.js',
       'packages/jquery/plugins/jquery.timeentry.js',
       'js/Common.js',
+      'js/crm.datepicker.js',
       'bower_components/angular/angular.js',
-      'js/crm.angular.js',
       angularTempFile,
       'bower_components/angular-file-upload/angular-file-upload.js',
       'bower_components/angular-jquery-dialog-service/dialog-service.js',

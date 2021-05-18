@@ -1,39 +1,25 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
- *
- *
- * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
- * $Id$
- *
+ * Class CRM_Extension_ClassLoader
  */
 class CRM_Extension_ClassLoader {
+
+  /**
+   * List of class-loader features that are valid in this version of Civi.
+   *
+   * This may be useful for some extensions which enable/disable polyfills based on environment.
+   */
+  const FEATURES = ',psr0,psr4,';
 
   /**
    * @var CRM_Extension_Mapper
@@ -77,22 +63,23 @@ class CRM_Extension_ClassLoader {
    */
   public function register() {
     // In pre-installation environments, don't bother with caching.
-    if (!defined('CIVICRM_TEMPLATE_COMPILEDIR') || !defined('CIVICRM_DSN') || defined('CIVICRM_TEST') || \CRM_Utils_System::isInUpgradeMode()) {
-      return $this->buildClassLoader()->register();
+    if (!defined('CIVICRM_DSN') || defined('CIVICRM_TEST') || \CRM_Utils_System::isInUpgradeMode()) {
+      $this->loader = $this->buildClassLoader();
+      return $this->loader->register();
     }
 
     $file = $this->getCacheFile();
     if (file_exists($file)) {
-      $loader = require $file;
+      $this->loader = require $file;
     }
     else {
-      $loader = $this->buildClassLoader();
-      $ser = serialize($loader);
+      $this->loader = $this->buildClassLoader();
+      $ser = serialize($this->loader);
       file_put_contents($file,
         sprintf("<?php\nreturn unserialize(%s);", var_export($ser, 1))
       );
     }
-    return $loader->register();
+    return $this->loader->register();
   }
 
   /**
@@ -108,18 +95,7 @@ class CRM_Extension_ClassLoader {
       if ($status !== CRM_Extension_Manager::STATUS_INSTALLED) {
         continue;
       }
-      $path = $this->mapper->keyToBasePath($key);
-      $info = $this->mapper->keyToInfo($key);
-      if (!empty($info->classloader)) {
-        foreach ($info->classloader as $mapping) {
-          switch ($mapping['type']) {
-            case 'psr4':
-              $loader->addPsr4($mapping['prefix'], $path . '/' . $mapping['path']);
-              break;
-          }
-          $result[] = $mapping;
-        }
-      }
+      self::loadExtension($loader, $this->mapper->keyToInfo($key), $this->mapper->keyToBasePath($key));
     }
 
     return $loader;
@@ -142,11 +118,52 @@ class CRM_Extension_ClassLoader {
   }
 
   /**
+   * Add a newly installed extension to the active classloader.
+   *
+   * NOTE: This is intended for use by CRM/Extension subsystem during installation.
+   *
+   * @param \CRM_Extension_Info $info
+   * @param string $path
+   */
+  public function installExtension(CRM_Extension_Info $info, string $path): void {
+    $file = $this->getCacheFile();
+    if (file_exists($file)) {
+      unlink($file);
+    }
+    if ($this->loader) {
+      self::loadExtension($this->loader, $info, $path);
+    }
+  }
+
+  /**
+   * Read the extension metadata configure a classloader.
+   *
+   * @param \Composer\Autoload\ClassLoader $loader
+   * @param \CRM_Extension_Info $info
+   * @param string $path
+   */
+  private static function loadExtension(\Composer\Autoload\ClassLoader $loader, CRM_Extension_Info $info, string $path): void {
+    if (!empty($info->classloader)) {
+      foreach ($info->classloader as $mapping) {
+        switch ($mapping['type']) {
+          case 'psr0':
+            $loader->add($mapping['prefix'], CRM_Utils_File::addTrailingSlash($path . '/' . $mapping['path']));
+            break;
+
+          case 'psr4':
+            $loader->addPsr4($mapping['prefix'], $path . '/' . $mapping['path']);
+            break;
+        }
+      }
+    }
+  }
+
+  /**
    * @return string
    */
   protected function getCacheFile() {
     $envId = \CRM_Core_Config_Runtime::getId();
-    $file = CIVICRM_TEMPLATE_COMPILEDIR . "/CachedExtLoader.{$envId}.php";
+    $file = \Civi::paths()->getPath("[civicrm.compile]/CachedExtLoader.{$envId}.php");
     return $file;
   }
 

@@ -4,7 +4,7 @@
  * Class CRM_Core_ComposerConfigTest
  * @group headless
  */
-class CRM_Core_ComposerConfigTest extends \PHPUnit_Framework_TestCase {
+class CRM_Core_ComposerConfigTest extends \PHPUnit\Framework\TestCase {
 
   /**
    * Assert that `composer.lock` remains as expected.
@@ -20,14 +20,14 @@ class CRM_Core_ComposerConfigTest extends \PHPUnit_Framework_TestCase {
    * because reviewers' eyes tend to gloss over `composer.lock`.
    */
   public function testHardLocks() {
-    $hardLocks = array(
-      'symfony/config' => '/^v2\.6\./',
-      'symfony/dependency-injection' => '/^v2\.6\./',
-      'symfony/event-dispatcher' => '/^v2\.6\./',
-      'symfony/filesystem' => '/^v2\.6\./',
-      'symfony/finder' => '/^v2\.6\./',
-      'symfony/process' => '/^v2\.6\./',
-    );
+    $hardLocks = [
+      'symfony/config' => '/^v3\.4\./',
+      'symfony/dependency-injection' => '/^v3\.4\./',
+      'symfony/event-dispatcher' => '/^v3\.4\./',
+      'symfony/filesystem' => '/^v3\.4\./',
+      'symfony/finder' => '/^v3\.4\./',
+      'symfony/process' => '/^v3\.4\./',
+    ];
 
     $lockFile = Civi::paths()->getPath('[civicrm.root]/composer.lock');
     $lock = json_decode(file_get_contents($lockFile), 1);
@@ -39,7 +39,7 @@ class CRM_Core_ComposerConfigTest extends \PHPUnit_Framework_TestCase {
         unset($hardLocks[$package['name']]);
       }
     }
-    $this->assertEquals(array(), $hardLocks,
+    $this->assertEquals([], $hardLocks,
       'composer.lock should have references to all hardlocks');
   }
 

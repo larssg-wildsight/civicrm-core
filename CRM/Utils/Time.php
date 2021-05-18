@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 
 /**
@@ -37,21 +21,46 @@
 class CRM_Utils_Time {
 
   /**
-   * @var int
-   *   the seconds offset from the real world time
+   * A function which determines the current time.
+   * Only used during testing (with mocked time).
+   *
+   * The normal value, NULL, indicates the use of real time.
+   *
+   * @var callable|null
    */
-  static private $_delta = 0;
+  static private $callback = NULL;
 
   /**
-   * Get the time.
+   * Evaluate a time expression (relative to current time).
    *
-   * @param string $returnFormat
-   *   Format in which date is to be retrieved.
-   *
-   * @return date
+   * @param string $str
+   *   Ex: '2001-02-03 04:05:06' or '+2 days'
+   * @param string|int $now
+   *   For relative time strings, $now determines the base time.
+   * @return false|int
+   *   The indicated time (seconds since epoch)
+   * @see strtotime()
    */
-  public static function getTime($returnFormat = 'YmdHis') {
-    return date($returnFormat, self::getTimeRaw());
+  public static function strtotime($str, $now = 'time()') {
+    if ($now === NULL || $now === 'time()') {
+      $now = self::time();
+    }
+    return strtotime($str, $now);
+  }
+
+  /**
+   * Format a date/time expression.
+   *
+   * @param string $format
+   *   Ex: 'Y-m-d H:i:s'
+   * @param null|int $timestamp
+   *   The time (seconds since epoch). NULL will use current time.
+   * @return string
+   *   Ex: '2001-02-03 04:05:06'
+   * @see date()
+   */
+  public static function date($format, $timestamp = NULL) {
+    return date($format, $timestamp ?: self::time());
   }
 
   /**
@@ -59,9 +68,36 @@ class CRM_Utils_Time {
    *
    * @return int
    *   seconds since epoch
+   * @see time()
+   */
+  public static function time() {
+    return self::$callback === NULL ? time() : call_user_func(self::$callback);
+  }
+
+  /**
+   * Get the time.
+   *
+   * @param string $returnFormat
+   *   Format in which date is to be retrieved.
+   *
+   * @return string
+   * @deprecated
+   *   Prefer CRM_Utils_Time::date(), whose name looks similar to the stdlib work-a-like.
+   */
+  public static function getTime($returnFormat = 'YmdHis') {
+    return date($returnFormat, self::time());
+  }
+
+  /**
+   * Get the time.
+   *
+   * @return int
+   *   seconds since epoch
+   * @deprecated
+   *   Prefer CRM_Utils_Time::time(), whose name looks similar to the stdlib work-a-like.
    */
   public static function getTimeRaw() {
-    return time() + self::$_delta;
+    return self::time();
   }
 
   /**
@@ -72,10 +108,61 @@ class CRM_Utils_Time {
    * @param string $returnFormat
    *   Format in which date is to be retrieved.
    *
-   * @return date
+   * Note: The progression of time will be influenced by TIME_FUNC, which may be:
+   *   - 'frozen' (time does not move)
+   *   - 'natural' (time moves naturally)
+   *   - 'linear:XXX' (time moves in increments of XXX milliseconds - with every lookup)
+   *   - 'prng:XXX' (time moves by random increments, between 0 and XXX milliseconds)
+   * @return string
    */
   public static function setTime($newDateTime, $returnFormat = 'YmdHis') {
-    self::$_delta = strtotime($newDateTime) - time();
+    $mode = getenv('TIME_FUNC') ? getenv('TIME_FUNC') : 'natural';
+
+    list ($modeName, $modeNum) = explode(":", "$mode:");
+
+    switch ($modeName) {
+      case 'frozen':
+        // Every getTime() will produce the same value (ie $newDateTime).
+        $now = strtotime($newDateTime);
+        self::$callback = function () use ($now) {
+          return $now;
+        };
+        break;
+
+      case 'natural':
+        // Time changes to $newDateTime and then proceeds naturally.
+        $delta = strtotime($newDateTime) - time();
+        self::$callback = function () use ($delta) {
+          return time() + $delta;
+        };
+        break;
+
+      case 'linear':
+        // Time changes to $newDateTime and then proceeds in fixed increments ($modeNum milliseconds).
+        $incr = ($modeNum / 1000.0);
+        $now = (float) strtotime($newDateTime) - $incr;
+        self::$callback = function () use (&$now, $incr) {
+          $now += $incr;
+          return floor($now);
+        };
+        break;
+
+      case 'prng':
+        // Time changes to $newDateTime and then proceeds using deterministic pseudorandom increments (of up to $modeNum milliseconds).
+        $seed = md5($newDateTime . chr(0) . $mode, TRUE);
+        $now = (float) strtotime($newDateTime);
+        self::$callback = function () use (&$seed, &$now, $modeNum) {
+          $mod = gmp_strval(gmp_mod(gmp_import($seed), "$modeNum"));
+          $seed = md5($seed . $now, TRUE);
+          $now = $now + ($mod / 1000.0);
+          return floor($now);
+        };
+        break;
+
+      default:
+        throw new \RuntimeException("Unrecognized TIME_FUNC ($mode)");
+    }
+
     return self::getTime($returnFormat);
   }
 
@@ -83,7 +170,7 @@ class CRM_Utils_Time {
    * Remove any time overrides.
    */
   public static function resetTime() {
-    self::$_delta = 0;
+    self::$callback = NULL;
   }
 
   /**

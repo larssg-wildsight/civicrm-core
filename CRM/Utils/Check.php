@@ -1,34 +1,18 @@
 <?php
 /*
  +--------------------------------------------------------------------+
- | CiviCRM version 5                                                  |
- +--------------------------------------------------------------------+
- | Copyright CiviCRM LLC (c) 2004-2018                                |
- +--------------------------------------------------------------------+
- | This file is a part of CiviCRM.                                    |
+ | Copyright CiviCRM LLC. All rights reserved.                        |
  |                                                                    |
- | CiviCRM is free software; you can copy, modify, and distribute it  |
- | under the terms of the GNU Affero General Public License           |
- | Version 3, 19 November 2007 and the CiviCRM Licensing Exception.   |
- |                                                                    |
- | CiviCRM is distributed in the hope that it will be useful, but     |
- | WITHOUT ANY WARRANTY; without even the implied warranty of         |
- | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.               |
- | See the GNU Affero General Public License for more details.        |
- |                                                                    |
- | You should have received a copy of the GNU Affero General Public   |
- | License and the CiviCRM Licensing Exception along                  |
- | with this program; if not, contact CiviCRM LLC                     |
- | at info[AT]civicrm[DOT]org. If you have questions about the        |
- | GNU Affero General Public License or the licensing of CiviCRM,     |
- | see the CiviCRM license FAQ at http://civicrm.org/licensing        |
+ | This work is published under the GNU AGPLv3 license with some      |
+ | permitted exceptions and without any warranty. For full license    |
+ | and copyright information, see https://civicrm.org/licensing       |
  +--------------------------------------------------------------------+
  */
 
 /**
  *
  * @package CRM
- * @copyright CiviCRM LLC (c) 2004-2018
+ * @copyright CiviCRM LLC https://civicrm.org/licensing
  */
 class CRM_Utils_Check {
   // How often to run checks and notify admins about issues.
@@ -38,7 +22,7 @@ class CRM_Utils_Check {
    * @var array
    * @link https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-3-logger-interface.md
    */
-  protected static $severityList = array(
+  protected static $severityList = [
     \Psr\Log\LogLevel::DEBUG,
     \Psr\Log\LogLevel::INFO,
     \Psr\Log\LogLevel::NOTICE,
@@ -47,7 +31,7 @@ class CRM_Utils_Check {
     \Psr\Log\LogLevel::CRITICAL,
     \Psr\Log\LogLevel::ALERT,
     \Psr\Log\LogLevel::EMERGENCY,
-  );
+  ];
 
   /**
    * We only need one instance of this object, so we use the
@@ -80,7 +64,7 @@ class CRM_Utils_Check {
    * Display daily system status alerts (admin only).
    */
   public function showPeriodicAlerts() {
-    if (CRM_Core_Permission::check('administer CiviCRM')) {
+    if (CRM_Core_Permission::check('administer CiviCRM system')) {
       $session = CRM_Core_Session::singleton();
       if ($session->timer('check_' . __CLASS__, self::CHECK_TIMER)) {
 
@@ -88,7 +72,7 @@ class CRM_Utils_Check {
         $config = CRM_Core_Config::singleton();
         $config->cleanup(0, FALSE);
 
-        $statusMessages = array();
+        $statusMessages = [];
         $maxSeverity = 0;
         foreach ($this->checkAll() as $message) {
           if (!$message->isVisible()) {
@@ -174,7 +158,7 @@ class CRM_Utils_Check {
       $messages = $this->checkAll();
     }
     $minLevel = self::severityMap($threshold);
-    $errors = array();
+    $errors = [];
     foreach ($messages as $message) {
       if ($message->getLevel() >= $minLevel) {
         $errors[] = $message->toArray();
@@ -186,33 +170,22 @@ class CRM_Utils_Check {
   }
 
   /**
-   * Run all system checks.
+   * Run all enabled system checks.
    *
    * This functon is wrapped by the System.check api.
    *
    * Calls hook_civicrm_check() for extensions to add or modify messages.
-   * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_check
+   * @link https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_check/
    *
    * @param bool $max
    *   Whether to return just the maximum non-hushed severity
    *
-   * @return array
-   *   Array of CRM_Utils_Check_Message objects
+   * @return CRM_Utils_Check_Message[]
    */
   public static function checkAll($max = FALSE) {
-    $messages = array();
-    foreach (glob(__DIR__ . '/Check/Component/*.php') as $filePath) {
-      $className = 'CRM_Utils_Check_Component_' . basename($filePath, '.php');
-      /* @var CRM_Utils_Check_Component $check */
-      $check = new $className();
-      if ($check->isEnabled()) {
-        $messages = array_merge($messages, $check->checkAll());
-      }
-    }
+    $messages = self::checkStatus();
 
-    CRM_Utils_Hook::check($messages);
-
-    uasort($messages, array(__CLASS__, 'severitySort'));
+    uasort($messages, [__CLASS__, 'severitySort']);
 
     $maxSeverity = 1;
     foreach ($messages as $message) {
@@ -223,9 +196,41 @@ class CRM_Utils_Check {
       break;
     }
 
-    Civi::settings()->set('systemStatusCheckResult', $maxSeverity);
+    Civi::cache('checks')->set('systemStatusCheckResult', $maxSeverity);
 
     return ($max) ? $maxSeverity : $messages;
+  }
+
+  /**
+   * @param array $statusNames
+   *   Optionally specify the names of specific checks to run, or leave empty to run all
+   * @param bool $includeDisabled
+   *   Run checks that have been explicitly disabled (default false)
+   *
+   * @return CRM_Utils_Check_Message[]
+   */
+  public static function checkStatus($statusNames = [], $includeDisabled = FALSE) {
+    $messages = [];
+    $checksNeeded = $statusNames;
+    foreach (glob(__DIR__ . '/Check/Component/*.php') as $filePath) {
+      $className = 'CRM_Utils_Check_Component_' . basename($filePath, '.php');
+      /* @var CRM_Utils_Check_Component $component */
+      $component = new $className();
+      if ($includeDisabled || $component->isEnabled()) {
+        $messages = array_merge($messages, $component->checkAll($statusNames, $includeDisabled));
+      }
+      if ($statusNames) {
+        // Early return if we have already run (or skipped) all the requested checks.
+        $checksNeeded = array_diff($checksNeeded, $component->getAllChecks());
+        if (!$checksNeeded) {
+          return $messages;
+        }
+      }
+    }
+
+    CRM_Utils_Hook::check($messages, $statusNames, $includeDisabled);
+
+    return $messages;
   }
 
   /**
