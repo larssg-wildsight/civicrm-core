@@ -241,6 +241,7 @@ class CRM_Price_BAO_PriceField extends CRM_Price_DAO_PriceField {
    *
    * @param null $fieldOptions
    * @param array $freezeOptions
+   * @param bool $isBackEnd
    *
    * @return null
    */
