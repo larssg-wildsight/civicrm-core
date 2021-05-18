@@ -541,12 +541,6 @@ class CRM_Price_BAO_PriceField extends CRM_Price_DAO_PriceField {
           $useRequired && $field->is_required,
           ['price' => json_encode($priceVal), 'class' => 'crm-select2', 'data-price-field-values' => json_encode($customOption)]
         );
-
-        // CRM-6902 - Add "max" option for a price set field
-        $button = substr($qf->controller->getButtonName(), -4);
-        if (!empty($freezeOptions) && $button != 'skip' && !$isBackEnd) {
-          $qf->addRule($elementName, ts('Sorry, this option is currently sold out.'), 'regex', "/" . implode('|', $allowedOptions) . "/");
-        }
         break;
 
       case 'CheckBox':
