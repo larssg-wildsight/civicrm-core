@@ -624,12 +624,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
           }
 
           //check if this is a backend registration
-          if ($className == 'CRM_Event_Form_Participant' || $className === 'CRM_Event_Form_Task_Register' || $className === 'CRM_Event_Form_ParticipantFeeSelection') {
-            $isBackEnd = TRUE;
-          }
-          else {
-            $isBackEnd = FALSE;
-          }
+           $isBackEnd = (in_array($className, $formClasses)) ? TRUE : FALSE;
 
           if (!empty($options)) {
             //build the element.
